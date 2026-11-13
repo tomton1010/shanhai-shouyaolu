@@ -67,6 +67,26 @@ export interface HuntFocus {
   facingY: number;
 }
 
+export interface HuntMods {
+  damage: number;
+  attackIntervalMs: number;
+  attackRange: number;
+  pickupRadius: number;
+  magnetRadius: number;
+  magnetSpeed: number;
+}
+
+export function defaultHuntMods(): HuntMods {
+  return {
+    damage: COMPANION_DAMAGE,
+    attackIntervalMs: COMPANION_ATTACK_INTERVAL_MS,
+    attackRange: COMPANION_ATTACK_RANGE,
+    pickupRadius: ORB_PICKUP_RADIUS,
+    magnetRadius: ORB_MAGNET_RADIUS,
+    magnetSpeed: ORB_MAGNET_SPEED,
+  };
+}
+
 export function createHuntState(x: number, y: number): HuntState {
   return {
     companionX: x + 46,
@@ -84,7 +104,13 @@ export function createHuntState(x: number, y: number): HuntState {
 }
 
 /** 推进一帧。rng 返回 [0, 1)。玩家没有生命值，碰到只记闪烁。 */
-export function stepHunt(state: HuntState, focus: HuntFocus, deltaMs: number, rng: () => number): void {
+export function stepHunt(
+  state: HuntState,
+  focus: HuntFocus,
+  deltaMs: number,
+  rng: () => number,
+  mods: HuntMods = defaultHuntMods(),
+): void {
   state.timeMs += deltaMs;
   state.spawnMs -= deltaMs;
   if (state.spawnMs <= 0) {
@@ -118,14 +144,14 @@ export function stepHunt(state: HuntState, focus: HuntFocus, deltaMs: number, rn
 
   state.attackCooldownMs -= deltaMs;
   if (state.attackCooldownMs <= 0) {
-    const target = nearestEnemy(state, state.companionX, state.companionY, COMPANION_ATTACK_RANGE);
+    const target = nearestEnemy(state, state.companionX, state.companionY, mods.attackRange);
     if (target) {
-      strike(state, target);
-      state.attackCooldownMs = COMPANION_ATTACK_INTERVAL_MS;
+      strike(state, target, mods.damage);
+      state.attackCooldownMs = mods.attackIntervalMs;
     }
   }
 
-  collectOrbs(state, focus, deltaMs);
+  collectOrbs(state, focus, deltaMs, mods);
   for (const whip of state.whips) {
     if (!whip.active) {
       continue;
@@ -161,9 +187,9 @@ function followPlayer(state: HuntState, focus: HuntFocus, deltaMs: number): void
   }
 }
 
-function strike(state: HuntState, enemy: EnemySlot): void {
+function strike(state: HuntState, enemy: EnemySlot, damage: number): void {
   state.companionAngle = Math.atan2(enemy.y - state.companionY, enemy.x - state.companionX);
-  enemy.hp -= COMPANION_DAMAGE;
+  enemy.hp -= damage;
   enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
   const whip = state.whips.find((slot) => !slot.active);
   if (whip) {
@@ -189,7 +215,7 @@ function dropOrb(state: HuntState, x: number, y: number): void {
   orb.y = y;
 }
 
-function collectOrbs(state: HuntState, focus: HuntFocus, deltaMs: number): void {
+function collectOrbs(state: HuntState, focus: HuntFocus, deltaMs: number, mods: HuntMods): void {
   let left = deltaMs;
   while (left > 0) {
     const slice = Math.min(16, left);
@@ -202,15 +228,15 @@ function collectOrbs(state: HuntState, focus: HuntFocus, deltaMs: number): void 
       const toCompanion = Math.hypot(state.companionX - orb.x, state.companionY - orb.y);
       const playerCloser = toPlayer <= toCompanion;
       const nearest = playerCloser ? toPlayer : toCompanion;
-      if (nearest <= ORB_PICKUP_RADIUS) {
+      if (nearest <= mods.pickupRadius) {
         orb.active = false;
         state.xp += ORB_VALUE;
         continue;
       }
-      if (nearest <= ORB_MAGNET_RADIUS && nearest > 0.001) {
+      if (nearest <= mods.magnetRadius && nearest > 0.001) {
         const targetX = playerCloser ? focus.x : state.companionX;
         const targetY = playerCloser ? focus.y : state.companionY;
-        const travel = Math.min(ORB_MAGNET_SPEED * (slice / 1000), nearest - ORB_PICKUP_RADIUS * 0.45);
+        const travel = Math.min(mods.magnetSpeed * (slice / 1000), nearest - mods.pickupRadius * 0.45);
         if (travel > 0) {
           orb.x += ((targetX - orb.x) / nearest) * travel;
           orb.y += ((targetY - orb.y) / nearest) * travel;

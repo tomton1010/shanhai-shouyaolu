@@ -142,3 +142,28 @@ export const ORB_CAP = 32;
 
 /** 被妖物碰到时闪烁多久，毫秒。没有掉血。 */
 export const PLAYER_HIT_FLASH_MS = 180;
+
+/**
+ * 升到下一级要的灵气。下标 0 是 1 级升 2 级。
+ * 站着让狌狌清怪时，大约 60 秒能拿到 24 点以上灵气，所以 6+8+9 落在这一段里。
+ * 之后的间隔更长；表用完后按 LEVEL_XP_GROWTH 继续加。
+ */
+export const LEVEL_XP_COSTS = [6, 8, 9, 14, 20, 28, 38];
+export const LEVEL_XP_GROWTH = 1.35;
+
+/** 每张属性符最多叠这么多层。 */
+export const CARD_STACK_CAP = 5;
+/** 每局可重画当前三张的次数。不做焚符、封印。 */
+export const REROLLS_PER_RUN = 1;
+
+export const CARD_DAMAGE_BONUS = 1;
+export const CARD_ATTACK_INTERVAL_DELTA_MS = 90;
+export const ATTACK_INTERVAL_MIN_MS = 200;
+export const CARD_RANGE_BONUS = 36;
+export const CARD_MOVE_SPEED_BONUS = 48;
+export const CARD_PICKUP_BONUS = 22;
+export const CARD_MAGNET_RADIUS_BONUS = 28;
+export const CARD_MAGNET_SPEED_BONUS = 140;
+export const CARD_DASH_COOLDOWN_DELTA_MS = 80;
+export const DASH_COOLDOWN_MIN_MS = 320;
+export const CARD_DASH_DISTANCE_BONUS = 28;

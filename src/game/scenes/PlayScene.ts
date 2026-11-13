@@ -1,4 +1,13 @@
 import Phaser from 'phaser';
+import {
+  emptyStacks,
+  levelProgress,
+  modifiersFrom,
+  rollCards,
+  xpToNextLevel,
+  type CardId,
+  type CardStacks,
+} from '../cards.ts';
 import { createHuntState, stepHunt, type HuntState } from '../combat.ts';
 import {
   COLOR_AZURITE_STAIN,
@@ -30,8 +39,10 @@ import {
   WHIP_DURATION_MS,
   WHIP_LENGTH,
 } from '../constants.ts';
+import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
 import { TouchControls } from '../touchControls.ts';
+import { REROLLS_PER_RUN } from '../constants.ts';
 
 /**
  * 俯视角场景：走位、冲刺、狌狌自动攻击、灵气拾取。
@@ -46,6 +57,13 @@ export class PlayScene extends Phaser.Scene {
   private orbViews: Phaser.GameObjects.Arc[] = [];
   private whipGfx!: Phaser.GameObjects.Graphics;
   private xpText!: Phaser.GameObjects.Text;
+  private xpBar!: Phaser.GameObjects.Graphics;
+  private overlay!: LevelUpOverlay;
+  private stacks: CardStacks = emptyStacks();
+  private levelsTaken = 0;
+  private xpSpent = 0;
+  private rerollsLeft = REROLLS_PER_RUN;
+  private offer: CardId[] | null = null;
   private talisman!: Phaser.GameObjects.Rectangle;
   private up!: Phaser.Input.Keyboard.Key;
   private down!: Phaser.Input.Keyboard.Key;
@@ -84,7 +102,7 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(30)
       .setScrollFactor(0);
     this.xpText = this.add
-      .text(GAME_WIDTH - 36, 28, '灵气 0', {
+      .text(GAME_WIDTH - 36, 28, '', {
         fontFamily: HINT_FONT,
         fontSize: '26px',
         color: COLOR_HINT,
@@ -92,6 +110,9 @@ export class PlayScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setDepth(30)
       .setScrollFactor(0);
+    this.xpBar = this.add.graphics().setDepth(30).setScrollFactor(0);
+    this.overlay = new LevelUpOverlay();
+    this.refreshHud();
 
     this.touch = new TouchControls(this);
     this.touch.attach();
@@ -131,7 +152,13 @@ export class PlayScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     void time;
+    if (this.offer) {
+      this.consumeDashPress();
+      this.touch.consumeDash();
+      return;
+    }
     const frameMs = Math.min(Math.max(delta, 0), MAX_FRAME_MS);
+    const mods = modifiersFrom(this.stacks);
     const keyboardX = (this.right.isDown || this.keyD.isDown ? 1 : 0) - (this.left.isDown || this.keyA.isDown ? 1 : 0);
     const keyboardY = (this.down.isDown || this.keyS.isDown ? 1 : 0) - (this.up.isDown || this.keyW.isDown ? 1 : 0);
     const usingKeyboard = keyboardX !== 0 || keyboardY !== 0;
@@ -148,6 +175,9 @@ export class PlayScene extends Phaser.Scene {
         x: rawX,
         y: rawY,
         dash: keyboardDash || touchDash,
+        moveSpeed: mods.moveSpeed,
+        dashDistance: mods.dashDistance,
+        dashCooldownMs: mods.dashCooldownMs,
       },
       frameMs,
     );
@@ -178,8 +208,12 @@ export class PlayScene extends Phaser.Scene {
       },
       frameMs,
       Math.random,
+      mods.hunt,
     );
     this.syncHunt();
+    if (!this.offer && this.hunt.xp - this.xpSpent >= xpToNextLevel(this.levelsTaken + 1)) {
+      this.openOffer();
+    }
   }
 
   private drawGround(): void {
@@ -313,7 +347,75 @@ export class PlayScene extends Phaser.Scene {
       this.whipGfx.lineBetween(whip.x, whip.y, sideX, sideY);
     }
 
-    this.xpText.setText(`灵气 ${this.hunt.xp}`);
+    this.refreshHud();
+  }
+
+  private refreshHud(): void {
+    const progress = levelProgress(this.hunt.xp, this.levelsTaken, this.xpSpent);
+    this.xpText.setText(`等级 ${progress.level}  ${progress.into}/${progress.need}`);
+    const width = 168;
+    const height = 6;
+    const x = GAME_WIDTH - 36 - width;
+    const y = 64;
+    this.xpBar.clear();
+    this.xpBar.fillStyle(0x241f1c, 1);
+    this.xpBar.fillRect(x, y, width, height);
+    const filled = progress.need > 0 ? width * (progress.into / progress.need) : 0;
+    this.xpBar.fillStyle(COLOR_MALACHITE, 1);
+    this.xpBar.fillRect(x, y, Math.max(0, filled), height);
+  }
+
+  private openOffer(): void {
+    const ids = rollCards(this.stacks, 3, Math.random);
+    if (ids.length === 0) {
+      this.xpSpent += xpToNextLevel(this.levelsTaken + 1);
+      this.levelsTaken += 1;
+      this.refreshHud();
+      return;
+    }
+    this.offer = ids;
+    this.touch.setSuspended(true);
+    this.overlay.show(ids, this.stacks, this.rerollsLeft, {
+      onChoose: (index) => {
+        this.choose(index);
+      },
+      onReroll: () => {
+        this.reroll();
+      },
+    });
+  }
+
+  private choose(index: number): void {
+    if (!this.offer || index < 0 || index >= this.offer.length) {
+      return;
+    }
+    const id = this.offer[index];
+    this.stacks[id] += 1;
+    this.xpSpent += xpToNextLevel(this.levelsTaken + 1);
+    this.levelsTaken += 1;
+    this.offer = null;
+    this.touch.setSuspended(false);
+    this.overlay.hide();
+    this.refreshHud();
+  }
+
+  private reroll(): void {
+    if (!this.offer || this.rerollsLeft <= 0) {
+      return;
+    }
+    this.rerollsLeft -= 1;
+    const next = rollCards(this.stacks, 3, Math.random, this.offer);
+    if (next.length > 0) {
+      this.offer = next;
+    }
+    this.overlay.show(this.offer, this.stacks, this.rerollsLeft, {
+      onChoose: (index) => {
+        this.choose(index);
+      },
+      onReroll: () => {
+        this.reroll();
+      },
+    });
   }
 
   private consumeDashPress(): boolean {
