@@ -88,3 +88,57 @@ export const COLOR_TALISMAN_DASH = 0xeadcc8;
 
 export const COLOR_HINT = '#cbbfaa';
 export const PORTRAIT_HINT_COLOR = '#a39886';
+
+/** 木行石绿。只用于狌狌、藤鞭和灵气，饱和度高于背景。 */
+export const COLOR_MALACHITE = 0x3d8f62;
+export const COLOR_MALACHITE_DEEP = 0x1b4630;
+export const COLOR_COMPANION_FUR = 0x241f1c;
+export const COLOR_COMPANION_EAR = 0xe6dcc8;
+
+/** 小怪比玩家暗，赭石标记用来和朱砂、石绿分开。 */
+export const COLOR_ENEMY_BODY = 0x3a3028;
+export const COLOR_ENEMY_MARK = 0x8a5a32;
+
+/** 狌狌身长，和玩家同级，不要做成大头。 */
+export const COMPANION_BODY_HEIGHT = 64;
+export const COMPANION_BODY_WIDTH = 34;
+/** 跟在玩家朝向的反方向，像素。 */
+export const COMPANION_FOLLOW_DISTANCE = 58;
+/** 追上玩家的速度，像素/秒。比走路快，避免被甩开。 */
+export const COMPANION_SPEED = 430;
+/** 自动攻击距离，像素。只打范围内最近的一只。 */
+export const COMPANION_ATTACK_RANGE = 220;
+/** 两次藤鞭之间的间隔，毫秒。 */
+export const COMPANION_ATTACK_INTERVAL_MS = 640;
+export const COMPANION_DAMAGE = 1;
+/** 藤鞭扫出的长度，像素。 */
+export const WHIP_LENGTH = 132;
+export const WHIP_DURATION_MS = 150;
+export const WHIP_CAP = 4;
+
+export const ENEMY_HP = 3;
+/** 追玩家的速度，像素/秒。慢于玩家，方便走位。 */
+export const ENEMY_SPEED = 108;
+/** 碰到玩家的距离，像素。只触发闪烁，不扣血。 */
+export const ENEMY_CONTACT_RADIUS = 58;
+export const ENEMY_RADIUS = 22;
+/** 每隔这么久从画面外刷一只。 */
+export const ENEMY_SPAWN_INTERVAL_MS = 1200;
+/** 每个间隔刷出的数量。 */
+export const ENEMY_SPAWN_COUNT = 1;
+export const ENEMY_CAP = 16;
+/** 出生点在画面外多少像素。 */
+export const ENEMY_SPAWN_MARGIN = 56;
+export const ENEMY_HIT_FLASH_MS = 90;
+
+/** 一颗灵气值多少经验。 */
+export const ORB_VALUE = 1;
+/** 走到这个距离内会被吸走，像素。玩家和狌狌都算。 */
+export const ORB_PICKUP_RADIUS = 52;
+/** 开始被吸向人的距离，像素。 */
+export const ORB_MAGNET_RADIUS = 148;
+export const ORB_MAGNET_SPEED = 480;
+export const ORB_CAP = 32;
+
+/** 被妖物碰到时闪烁多久，毫秒。没有掉血。 */
+export const PLAYER_HIT_FLASH_MS = 180;
