@@ -1,0 +1,19 @@
+{
+  "name": "shanhai-shouyaolu",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types scripts/check-motion.ts && node --experimental-strip-types scripts/check-joystick.ts"
+  },
+  "dependencies": {
+    "phaser": "^3.88.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.3",
+    "vite": "^6.0.11"
+  }
+}
