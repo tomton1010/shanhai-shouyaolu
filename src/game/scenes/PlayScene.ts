@@ -1,8 +1,15 @@
 import Phaser from 'phaser';
+import { createHuntState, stepHunt, type HuntState } from '../combat.ts';
 import {
   COLOR_AZURITE_STAIN,
+  COLOR_COMPANION_EAR,
+  COLOR_COMPANION_FUR,
+  COLOR_ENEMY_BODY,
+  COLOR_ENEMY_MARK,
   COLOR_HINT,
   COLOR_INK,
+  COLOR_MALACHITE,
+  COLOR_MALACHITE_DEEP,
   COLOR_OCHRE_STAIN,
   COLOR_PLAYER_FACE,
   COLOR_PLAYER_HEM,
@@ -20,17 +27,25 @@ import {
   HINT_TEXT,
   MAX_FRAME_MS,
   TRAIL_FADE_MS,
+  WHIP_DURATION_MS,
+  WHIP_LENGTH,
 } from '../constants.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
 import { TouchControls } from '../touchControls.ts';
 
 /**
- * 任务 1.1 的唯一场景：暗色地面、一个占位道士、一句提示。
- * 移动和冲刺的数值在 constants.ts，位移规则在 motion.ts。
+ * 俯视角场景：走位、冲刺、狌狌自动攻击、灵气拾取。
+ * 数值在 constants.ts，位移在 motion.ts，战斗在 combat.ts。
  */
 export class PlayScene extends Phaser.Scene {
   private motion!: MotionState;
+  private hunt!: HuntState;
   private player!: Phaser.GameObjects.Container;
+  private companion!: Phaser.GameObjects.Container;
+  private enemyViews: Phaser.GameObjects.Container[] = [];
+  private orbViews: Phaser.GameObjects.Arc[] = [];
+  private whipGfx!: Phaser.GameObjects.Graphics;
+  private xpText!: Phaser.GameObjects.Text;
   private talisman!: Phaser.GameObjects.Rectangle;
   private up!: Phaser.Input.Keyboard.Key;
   private down!: Phaser.Input.Keyboard.Key;
@@ -53,7 +68,12 @@ export class PlayScene extends Phaser.Scene {
   create(): void {
     this.drawGround();
     this.motion = createMotionState(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+    this.hunt = createHuntState(this.motion.x, this.motion.y);
     this.player = this.createPlayer(this.motion.x, this.motion.y);
+    this.companion = this.createCompanion(this.hunt.companionX, this.hunt.companionY);
+    this.createEnemyViews();
+    this.createOrbViews();
+    this.whipGfx = this.add.graphics().setDepth(10);
 
     this.add
       .text(36, 28, HINT_TEXT, {
@@ -61,6 +81,15 @@ export class PlayScene extends Phaser.Scene {
         fontSize: '26px',
         color: COLOR_HINT,
       })
+      .setDepth(30)
+      .setScrollFactor(0);
+    this.xpText = this.add
+      .text(GAME_WIDTH - 36, 28, '灵气 0', {
+        fontFamily: HINT_FONT,
+        fontSize: '26px',
+        color: COLOR_HINT,
+      })
+      .setOrigin(1, 0)
       .setDepth(30)
       .setScrollFactor(0);
 
@@ -138,6 +167,19 @@ export class PlayScene extends Phaser.Scene {
       this.talisman.setFillStyle(COLOR_TALISMAN_COOLDOWN);
     }
     this.touch.syncDash(step.dashReady, step.bursting, this.motion.cooldownRemainingMs);
+
+    stepHunt(
+      this.hunt,
+      {
+        x: this.motion.x,
+        y: this.motion.y,
+        facingX: this.motion.facingX,
+        facingY: this.motion.facingY,
+      },
+      frameMs,
+      Math.random,
+    );
+    this.syncHunt();
   }
 
   private drawGround(): void {
@@ -179,8 +221,99 @@ export class PlayScene extends Phaser.Scene {
     this.talisman = this.add.rectangle(0, 8, 6, 18, COLOR_TALISMAN_READY);
 
     const player = this.add.container(x, y, [body, this.talisman]);
-    player.setDepth(5);
+    player.setDepth(8);
     return player;
+  }
+
+  private createCompanion(x: number, y: number): Phaser.GameObjects.Container {
+    const body = this.add.graphics();
+    body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
+    body.fillRect(-19, -34, 38, 68);
+    body.fillStyle(COLOR_COMPANION_FUR, 1);
+    body.fillRect(-17, -32, 34, 64);
+    body.fillStyle(0x161310, 1);
+    body.fillRect(-12, -32, 24, 16);
+    body.fillStyle(COLOR_COMPANION_EAR, 1);
+    body.fillRect(-20, -30, 8, 6);
+    body.fillRect(12, -30, 8, 6);
+    body.fillStyle(COLOR_MALACHITE, 1);
+    body.fillRect(-3, -8, 6, 26);
+    const companion = this.add.container(x, y, [body]);
+    companion.setDepth(7);
+    return companion;
+  }
+
+  private createEnemyViews(): void {
+    for (let index = 0; index < this.hunt.enemies.length; index += 1) {
+      const body = this.add.graphics();
+      body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
+      body.fillRoundedRect(-26, -16, 52, 32, 2);
+      body.fillStyle(COLOR_ENEMY_BODY, 1);
+      body.fillRoundedRect(-24, -14, 48, 28, 2);
+      body.fillStyle(COLOR_ENEMY_MARK, 1);
+      body.fillRect(-6, -6, 16, 8);
+      const view = this.add.container(0, 0, [body]);
+      view.setDepth(4);
+      view.setVisible(false);
+      this.enemyViews.push(view);
+    }
+  }
+
+  private createOrbViews(): void {
+    for (let index = 0; index < this.hunt.orbs.length; index += 1) {
+      const orb = this.add.circle(0, 0, 7, COLOR_MALACHITE, 0.95);
+      orb.setStrokeStyle(2, COLOR_MALACHITE_DEEP, 1);
+      orb.setDepth(6);
+      orb.setVisible(false);
+      this.orbViews.push(orb);
+    }
+  }
+
+  private syncHunt(): void {
+    this.companion.setPosition(this.hunt.companionX, this.hunt.companionY);
+    this.companion.setRotation(this.hunt.companionAngle + Math.PI / 2);
+    const playerFlashing = this.hunt.playerFlashMs > 0 && Math.floor(this.hunt.timeMs / 50) % 2 === 0;
+    this.player.setAlpha(playerFlashing ? 0.35 : 1);
+
+    for (let index = 0; index < this.hunt.enemies.length; index += 1) {
+      const enemy = this.hunt.enemies[index];
+      const view = this.enemyViews[index];
+      view.setVisible(enemy.active);
+      if (!enemy.active) {
+        continue;
+      }
+      view.setPosition(enemy.x, enemy.y);
+      view.setRotation(Math.atan2(this.motion.y - enemy.y, this.motion.x - enemy.x));
+      view.setAlpha(enemy.hitFlashMs > 0 ? 0.45 : 1);
+    }
+
+    for (let index = 0; index < this.hunt.orbs.length; index += 1) {
+      const orb = this.hunt.orbs[index];
+      const view = this.orbViews[index];
+      view.setVisible(orb.active);
+      if (orb.active) {
+        view.setPosition(orb.x, orb.y);
+      }
+    }
+
+    this.whipGfx.clear();
+    for (const whip of this.hunt.whips) {
+      if (!whip.active) {
+        continue;
+      }
+      const alpha = Math.max(0.2, whip.lifeMs / WHIP_DURATION_MS);
+      const reachX = whip.x + Math.cos(whip.angle) * WHIP_LENGTH;
+      const reachY = whip.y + Math.sin(whip.angle) * WHIP_LENGTH;
+      const sweep = 0.7;
+      const sideX = whip.x + Math.cos(whip.angle + sweep) * (WHIP_LENGTH * 0.82);
+      const sideY = whip.y + Math.sin(whip.angle + sweep) * (WHIP_LENGTH * 0.82);
+      this.whipGfx.lineStyle(6, COLOR_MALACHITE, alpha);
+      this.whipGfx.lineBetween(whip.x, whip.y, reachX, reachY);
+      this.whipGfx.lineStyle(3, COLOR_MALACHITE_DEEP, alpha);
+      this.whipGfx.lineBetween(whip.x, whip.y, sideX, sideY);
+    }
+
+    this.xpText.setText(`灵气 ${this.hunt.xp}`);
   }
 
   private consumeDashPress(): boolean {
