@@ -1,0 +1,73 @@
+/** 游戏内部分辨率。显示可以缩放，坐标系始终是这块画布。 */
+export const GAME_WIDTH = 1280;
+export const GAME_HEIGHT = 720;
+
+/**
+ * 占位道士身长（像素）。正式精灵未就绪，先用这个尺寸的色块。
+ * 身高约 64，避免大头 Q 版。
+ */
+export const PLAYER_BODY_HEIGHT = 64;
+export const PLAYER_BODY_WIDTH = 36;
+
+/** 描边外接圆半径。斜向时 40×68 的角不会伸出画布。 */
+export const PLAYER_HALF_EXTENT = 40;
+
+/** 走路速度，像素/秒。斜向会先归一化，因此不会更快。 */
+export const PLAYER_MOVE_SPEED = 320;
+
+/** 冲刺位移长度，像素。沿单位方向一次走完。 */
+export const DASH_DISTANCE = 140;
+
+/** 冲刺位移耗时，毫秒。 */
+export const DASH_DURATION_MS = 110;
+
+/**
+ * 冲刺冷却，毫秒，从冲刺开始的那一帧算起（含冲刺本身的耗时）。
+ * 冷却结束前不能再次冲刺。
+ */
+export const DASH_COOLDOWN_MS = 750;
+
+/**
+ * 单帧最多推进的模拟时间。浏览器卡顿时避免一帧滑过整张图，
+ * 也避免一次大的 delta 把冷却直接扣完。
+ */
+export const MAX_FRAME_MS = 64;
+
+/** 冲刺残影淡出时间，毫秒。 */
+export const TRAIL_FADE_MS = 180;
+
+/**
+ * 冲刺键是空格。在 PlayScene 里绑定，README 里说明。
+ * 不绑定 Shift，避免和以后的其他操作撞车。
+ */
+export const DASH_KEY_LABEL = '空格';
+
+/** 画面上唯一一句提示。 */
+export const HINT_TEXT = '走位即可';
+
+export const HINT_FONT =
+  '"WenQuanYi Micro Hei", "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", "Heiti SC", sans-serif';
+
+/**
+ * 墨黑色板。背景保持低饱和，角色用骨白和下方朱砂把轮廓从地上分开。
+ * 背景色的饱和度要低于朱砂符纸。
+ */
+export const COLOR_INK = 0x0e0d0c;
+export const COLOR_TILE_A = 0x141311;
+export const COLOR_TILE_B = 0x1b1916;
+/** 很暗的石青污迹，只给地面一点冷色，不和角色抢饱和度。 */
+export const COLOR_AZURITE_STAIN = 0x1c2a2e;
+/** 很暗的赭石污迹。 */
+export const COLOR_OCHRE_STAIN = 0x2a2418;
+
+export const COLOR_PLAYER_OUTLINE = 0x070605;
+export const COLOR_PLAYER_ROBE = 0x4a433c;
+export const COLOR_PLAYER_HOOD = 0x161310;
+export const COLOR_PLAYER_HEM = 0x2e2925;
+export const COLOR_PLAYER_FACE = 0xd5c8b4;
+/** 朱砂。这是画面里饱和度最高的颜色，用来标出玩家。 */
+export const COLOR_TALISMAN_READY = 0xc44536;
+export const COLOR_TALISMAN_COOLDOWN = 0x5c342e;
+export const COLOR_TALISMAN_DASH = 0xeadcc8;
+
+export const COLOR_HINT = '#cbbfaa';
