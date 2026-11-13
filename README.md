@@ -39,6 +39,17 @@ npm run dev
 
 速度、冲刺距离和冷却写在 `src/game/constants.ts`。`npm run build` 会做类型检查并产出 `dist/`。
 
+## 手机
+
+合并进 `main` 并且打开 Pages 之后，手机打开 [https://tomton1010.github.io/shanhai-shouyaolu/](https://tomton1010.github.io/shanhai-shouyaolu/)。竖屏横屏都能看到完整的 1280×720 画面，竖屏会提示「横屏体验更好」。
+
+触控（手机上才出现，桌面仍用键盘）：
+
+- 按住屏幕左半边，手指落下的位置出现摇杆，拖动走位，松开消失。可以和冲刺同时按。
+- 右下角按钮冲刺，规则和空格一样：有冷却，按住不会连冲，松开后再按才算下一次。
+
+部署只在推到 `main` 时跑。仓库所有者要先打开 GitHub 的 Settings → Pages → Build and deployment，把 Source 设为 GitHub Actions。工作流不能自己改这个开关，所以要等 PR 合并后页面才会上线。
+
 ## 文档来源
 
 设计文档整理自：[《山海收妖录》游戏设计文档](https://cursor.com/canvas/store-6e720c58-c1da-467a-b128-c58d1b1fe7cb/666d1aba-2839-41f4-8a18-633ffe1021f6)

@@ -21,7 +21,10 @@ export interface MotionState {
 }
 
 export interface MotionInput {
-  /** 键盘原始轴，取 -1、0、1，函数内部会归一化。 */
+  /**
+   * 移动向量。长度 ≤ 1 时按比例走路（摇杆半推就是半速）。
+   * 键盘斜向会给出长度大于 1 的向量，这时收成单位向量，所以斜向不会更快。
+   */
   x: number;
   y: number;
   /** 只在冲刺键按下的那一帧为 true。按住不重复。 */
@@ -52,7 +55,7 @@ export function createMotionState(x: number, y: number): MotionState {
 }
 
 export function stepMotion(state: MotionState, input: MotionInput, deltaMs: number): MotionStep {
-  const move = normalize(input.x, input.y);
+  const move = clampToUnit(input.x, input.y);
   let facingX = state.facingX;
   let facingY = state.facingY;
   if (move.x !== 0 || move.y !== 0) {
@@ -114,11 +117,14 @@ export function stepMotion(state: MotionState, input: MotionInput, deltaMs: numb
   };
 }
 
-function normalize(x: number, y: number): { x: number; y: number } {
+function clampToUnit(x: number, y: number): { x: number; y: number } {
   if (x === 0 && y === 0) {
     return { x: 0, y: 0 };
   }
   const length = Math.hypot(x, y);
+  if (length <= 1) {
+    return { x, y };
+  }
   return { x: x / length, y: y / length };
 }
 

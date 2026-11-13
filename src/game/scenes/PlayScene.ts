@@ -22,6 +22,7 @@ import {
   TRAIL_FADE_MS,
 } from '../constants.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
+import { TouchControls } from '../touchControls.ts';
 
 /**
  * 任务 1.1 的唯一场景：暗色地面、一个占位道士、一句提示。
@@ -43,6 +44,7 @@ export class PlayScene extends Phaser.Scene {
   private keySpace!: Phaser.Input.Keyboard.Key;
   /** 空格按下时记下，下一帧消费。避免极短点按在 JustDown 被读到之前就松开。 */
   private dashQueued = false;
+  private touch!: TouchControls;
 
   constructor() {
     super('play');
@@ -59,7 +61,11 @@ export class PlayScene extends Phaser.Scene {
         fontSize: '26px',
         color: COLOR_HINT,
       })
-      .setDepth(10);
+      .setDepth(30)
+      .setScrollFactor(0);
+
+    this.touch = new TouchControls(this);
+    this.touch.attach();
 
     const keyboard = this.input.keyboard;
     if (!keyboard) {
@@ -97,17 +103,22 @@ export class PlayScene extends Phaser.Scene {
   update(time: number, delta: number): void {
     void time;
     const frameMs = Math.min(Math.max(delta, 0), MAX_FRAME_MS);
-    const rawX = (this.right.isDown || this.keyD.isDown ? 1 : 0) - (this.left.isDown || this.keyA.isDown ? 1 : 0);
-    const rawY = (this.down.isDown || this.keyS.isDown ? 1 : 0) - (this.up.isDown || this.keyW.isDown ? 1 : 0);
+    const keyboardX = (this.right.isDown || this.keyD.isDown ? 1 : 0) - (this.left.isDown || this.keyA.isDown ? 1 : 0);
+    const keyboardY = (this.down.isDown || this.keyS.isDown ? 1 : 0) - (this.up.isDown || this.keyW.isDown ? 1 : 0);
+    const usingKeyboard = keyboardX !== 0 || keyboardY !== 0;
+    const rawX = usingKeyboard ? keyboardX : this.touch.axisX;
+    const rawY = usingKeyboard ? keyboardY : this.touch.axisY;
     const fromX = this.motion.x;
     const fromY = this.motion.y;
 
+    const keyboardDash = this.consumeDashPress();
+    const touchDash = this.touch.consumeDash();
     const step = stepMotion(
       this.motion,
       {
         x: rawX,
         y: rawY,
-        dash: this.consumeDashPress(),
+        dash: keyboardDash || touchDash,
       },
       frameMs,
     );
@@ -126,6 +137,7 @@ export class PlayScene extends Phaser.Scene {
     } else {
       this.talisman.setFillStyle(COLOR_TALISMAN_COOLDOWN);
     }
+    this.touch.syncDash(step.dashReady, step.bursting, this.motion.cooldownRemainingMs);
   }
 
   private drawGround(): void {

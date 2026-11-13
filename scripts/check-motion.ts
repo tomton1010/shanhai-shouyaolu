@@ -95,6 +95,13 @@ assert(GAME_HEIGHT === 720 && GAME_WIDTH === 1280, 'canvas size');
 const idle = walk(createMotionState(400, 400), 0, 0, 500);
 assert(nearly(idle.x, 400) && nearly(idle.y, 400), 'no input does not drift');
 
+let half = createMotionState(480, 360);
+for (let i = 0; i < 60; i += 1) {
+  half = walk(half, 0.5, 0, stepMs);
+}
+assert(nearly(half.x, 480 + PLAYER_MOVE_SPEED * 0.5, 0.01), `half stick speed x=${half.x}`);
+assert(nearly(half.y, 360), 'half stick keeps y');
+
 if (failed > 0) {
   throw new Error(`${failed} motion check(s) failed`);
 }

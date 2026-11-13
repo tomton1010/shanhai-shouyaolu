@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types scripts/check-motion.ts"
+    "test": "node --experimental-strip-types scripts/check-motion.ts && node --experimental-strip-types scripts/check-joystick.ts"
   },
   "dependencies": {
     "phaser": "^3.88.2"

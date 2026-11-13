@@ -37,13 +37,29 @@ export const MAX_FRAME_MS = 64;
 export const TRAIL_FADE_MS = 180;
 
 /**
- * 冲刺键是空格。在 PlayScene 里绑定，README 里说明。
+ * 冲刺键是空格。触控时右下角按钮走同一套冷却。
  * 不绑定 Shift，避免和以后的其他操作撞车。
  */
 export const DASH_KEY_LABEL = '空格';
 
-/** 画面上唯一一句提示。 */
+/** 摇杆可拖动的最大半径，像素。超出后方向不变、速度封顶。 */
+export const JOYSTICK_MAX_RADIUS = 72;
+
+/** 小于这个比例视为没推动。按半径的比例，不是像素。 */
+export const JOYSTICK_DEADZONE = 0.18;
+
+export const JOYSTICK_BASE_RADIUS = 78;
+export const JOYSTICK_KNOB_RADIUS = 26;
+
+/** 右下角冲刺按钮。 */
+export const DASH_BUTTON_RADIUS = 54;
+export const DASH_BUTTON_MARGIN = 36;
+export const DASH_BUTTON_X = GAME_WIDTH - DASH_BUTTON_MARGIN - DASH_BUTTON_RADIUS;
+export const DASH_BUTTON_Y = GAME_HEIGHT - DASH_BUTTON_MARGIN - DASH_BUTTON_RADIUS;
+
+/** 玩法提示只有这一句。竖屏另有一条不挡操作的设备提示。 */
 export const HINT_TEXT = '走位即可';
+export const PORTRAIT_HINT_TEXT = '横屏体验更好';
 
 export const HINT_FONT =
   '"WenQuanYi Micro Hei", "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", "Heiti SC", sans-serif';
@@ -71,3 +87,4 @@ export const COLOR_TALISMAN_COOLDOWN = 0x5c342e;
 export const COLOR_TALISMAN_DASH = 0xeadcc8;
 
 export const COLOR_HINT = '#cbbfaa';
+export const PORTRAIT_HINT_COLOR = '#a39886';
