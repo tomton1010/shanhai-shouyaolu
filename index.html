@@ -43,10 +43,109 @@
         width: 100%;
         height: 100%;
       }
+
+      #level-up {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 20px;
+        box-sizing: border-box;
+        background: rgba(8, 7, 6, 0.9);
+        color: #cbbfaa;
+        font-family: "WenQuanYi Micro Hei", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      #level-up[hidden] {
+        display: none !important;
+      }
+
+      .level-up-title {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0.2em;
+      }
+
+      .cards {
+        display: flex;
+        gap: 14px;
+        width: min(980px, 100%);
+      }
+
+      .card,
+      #level-up-reroll {
+        border: 1px solid #3a342c;
+        background: #161311;
+        color: #cbbfaa;
+        font: inherit;
+        text-align: left;
+      }
+
+      .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 148px;
+        padding: 16px 16px 14px;
+        cursor: pointer;
+      }
+
+      .card-key {
+        color: #8d8374;
+        font-size: 14px;
+      }
+
+      .card-name {
+        font-size: 26px;
+      }
+
+      .card-detail {
+        font-size: 18px;
+        color: #d7cbb6;
+      }
+
+      .card-stack {
+        margin-top: auto;
+        color: #8d8374;
+        font-size: 15px;
+      }
+
+      #level-up-reroll {
+        min-width: 180px;
+        min-height: 48px;
+        padding: 0 18px;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      #level-up-reroll:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      @media (orientation: portrait) {
+        .cards {
+          flex-direction: column;
+        }
+
+        .card {
+          min-height: 92px;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="level-up" hidden>
+      <p class="level-up-title">选择符箓</p>
+      <div class="cards" id="level-up-cards"></div>
+      <button type="button" id="level-up-reroll">重画</button>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

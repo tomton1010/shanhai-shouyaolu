@@ -27,6 +27,7 @@ const DASH_HIT_RADIUS = DASH_BUTTON_RADIUS + 16;
  */
 export class TouchControls {
   private enabled: boolean;
+  private suspended = false;
   private joystickPointerId: number | null = null;
   private dashPointerId: number | null = null;
   private originX = 0;
@@ -108,8 +109,18 @@ export class TouchControls {
     this.redrawDash(ready, bursting, cooldownRemainingMs);
   }
 
+  /** 选符箓时停掉摇杆和冲刺，避免松手后补一次位移。 */
+  setSuspended(suspended: boolean): void {
+    this.suspended = suspended;
+    if (suspended) {
+      this.releaseJoystick();
+      this.dashEdge = false;
+      this.dashPointerId = null;
+    }
+  }
+
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    if (!pointer.wasTouch) {
+    if (this.suspended || !pointer.wasTouch) {
       return;
     }
     if (!this.enabled) {
@@ -134,7 +145,7 @@ export class TouchControls {
   }
 
   private onPointerMove(pointer: Phaser.Input.Pointer): void {
-    if (pointer.id !== this.joystickPointerId || !pointer.isDown) {
+    if (this.suspended || pointer.id !== this.joystickPointerId || !pointer.isDown) {
       return;
     }
     this.applyFinger(pointer.x, pointer.y);

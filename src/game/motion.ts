@@ -29,6 +29,10 @@ export interface MotionInput {
   y: number;
   /** 只在冲刺键按下的那一帧为 true。按住不重复。 */
   dash: boolean;
+  /** 缺省用 PLAYER_MOVE_SPEED。升级的快步会传入更大的值。 */
+  moveSpeed?: number;
+  dashDistance?: number;
+  dashCooldownMs?: number;
 }
 
 export interface MotionStep {
@@ -69,11 +73,14 @@ export function stepMotion(state: MotionState, input: MotionInput, deltaMs: numb
   let dashDirY = state.dashDirY;
   let dashStarted = false;
 
+  const dashDistance = input.dashDistance ?? DASH_DISTANCE;
+  const dashCooldownMs = input.dashCooldownMs ?? DASH_COOLDOWN_MS;
+  const moveSpeed = input.moveSpeed ?? PLAYER_MOVE_SPEED;
   const canDash = input.dash && dashRemainingMs <= 0 && cooldownRemainingMs <= 0;
   if (canDash) {
     dashStarted = true;
     dashRemainingMs = DASH_DURATION_MS;
-    cooldownRemainingMs = DASH_COOLDOWN_MS;
+    cooldownRemainingMs = dashCooldownMs;
     dashDirX = facingX;
     dashDirY = facingY;
   }
@@ -85,14 +92,14 @@ export function stepMotion(state: MotionState, input: MotionInput, deltaMs: numb
   if (dashRemainingMs > 0) {
     bursting = true;
     const stepMs = Math.min(deltaMs, dashRemainingMs);
-    const distance = (DASH_DISTANCE * stepMs) / DASH_DURATION_MS;
+    const distance = (dashDistance * stepMs) / DASH_DURATION_MS;
     x += dashDirX * distance;
     y += dashDirY * distance;
     dashRemainingMs = Math.max(0, dashRemainingMs - deltaMs);
   } else if (move.x !== 0 || move.y !== 0) {
     const seconds = deltaMs / 1000;
-    x += move.x * PLAYER_MOVE_SPEED * seconds;
-    y += move.y * PLAYER_MOVE_SPEED * seconds;
+    x += move.x * moveSpeed * seconds;
+    y += move.y * moveSpeed * seconds;
   }
 
   cooldownRemainingMs = Math.max(0, cooldownRemainingMs - deltaMs);
