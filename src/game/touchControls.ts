@@ -17,6 +17,7 @@ import {
   PORTRAIT_HINT_COLOR,
   PORTRAIT_HINT_TEXT,
 } from './constants.ts';
+import { releaseStuckTouchPointers } from './inputResume.ts';
 import { hitsDashButton, isLeftHalf, joystickVector } from './joystick.ts';
 
 const DASH_HIT_RADIUS = DASH_BUTTON_RADIUS + 16;
@@ -112,10 +113,12 @@ export class TouchControls {
   /** 选符箓时停掉摇杆和冲刺，避免松手后补一次位移。 */
   setSuspended(suspended: boolean): void {
     this.suspended = suspended;
-    if (suspended) {
-      this.releaseJoystick();
-      this.dashEdge = false;
-      this.dashPointerId = null;
+    this.releaseJoystick();
+    this.dashEdge = false;
+    this.dashPointerId = null;
+    const manager = this.scene.input.manager;
+    if (manager) {
+      releaseStuckTouchPointers(manager.pointers);
     }
   }
 
