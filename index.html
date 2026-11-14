@@ -60,8 +60,50 @@
         font-family: "WenQuanYi Micro Hei", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
       }
 
-      #level-up[hidden] {
+      #level-up[hidden],
+      #run-end[hidden] {
         display: none !important;
+      }
+
+      #run-end {
+        position: fixed;
+        inset: 0;
+        z-index: 21;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 24px;
+        box-sizing: border-box;
+        background: rgba(8, 7, 6, 0.92);
+        color: #cbbfaa;
+        font-family: "WenQuanYi Micro Hei", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      #run-end-title {
+        margin: 0;
+        font-size: 36px;
+        letter-spacing: 0.24em;
+      }
+
+      #run-end-detail {
+        margin: 0;
+        font-size: 22px;
+        color: #d7cbb6;
+      }
+
+      #run-end-again {
+        min-width: 220px;
+        min-height: 64px;
+        padding: 0 28px;
+        border: 1px solid #3a342c;
+        background: #161311;
+        color: #cbbfaa;
+        font: inherit;
+        font-size: 24px;
+        letter-spacing: 0.12em;
+        cursor: pointer;
       }
 
       .level-up-title {
@@ -145,6 +187,11 @@
       <p class="level-up-title">选择符箓</p>
       <div class="cards" id="level-up-cards"></div>
       <button type="button" id="level-up-reroll">重画</button>
+    </div>
+    <div id="run-end" hidden>
+      <p id="run-end-title"></p>
+      <p id="run-end-detail"></p>
+      <button type="button" id="run-end-again">再来一局</button>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

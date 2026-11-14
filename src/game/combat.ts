@@ -5,6 +5,8 @@ import {
   COMPANION_FOLLOW_DISTANCE,
   COMPANION_SPEED,
   ENEMY_CAP,
+  ENEMY_CONTACT_COOLDOWN_MS,
+  ENEMY_CONTACT_DAMAGE,
   ENEMY_CONTACT_RADIUS,
   ENEMY_HP,
   ENEMY_HIT_FLASH_MS,
@@ -20,6 +22,7 @@ import {
   ORB_PICKUP_RADIUS,
   ORB_VALUE,
   PLAYER_HIT_FLASH_MS,
+  PLAYER_MAX_HP,
   WHIP_CAP,
   WHIP_DURATION_MS,
 } from './constants.ts';
@@ -52,6 +55,9 @@ export interface HuntState {
   companionAngle: number;
   attackCooldownMs: number;
   xp: number;
+  playerHp: number;
+  kills: number;
+  contactCooldownMs: number;
   playerFlashMs: number;
   spawnMs: number;
   timeMs: number;
@@ -94,6 +100,9 @@ export function createHuntState(x: number, y: number): HuntState {
     companionAngle: -Math.PI / 2,
     attackCooldownMs: 0,
     xp: 0,
+    playerHp: PLAYER_MAX_HP,
+    kills: 0,
+    contactCooldownMs: 0,
     playerFlashMs: 0,
     spawnMs: 0,
     timeMs: 0,
@@ -103,7 +112,7 @@ export function createHuntState(x: number, y: number): HuntState {
   };
 }
 
-/** 推进一帧。rng 返回 [0, 1)。玩家没有生命值，碰到只记闪烁。 */
+/** 推进一帧。rng 返回 [0, 1)。接触按冷却扣玩家生命，并闪烁。 */
 export function stepHunt(
   state: HuntState,
   focus: HuntFocus,
@@ -138,7 +147,16 @@ export function stepHunt(
     }
     enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
   }
-  state.playerFlashMs = touching ? PLAYER_HIT_FLASH_MS : Math.max(0, state.playerFlashMs - deltaMs);
+  state.contactCooldownMs = Math.max(0, state.contactCooldownMs - deltaMs);
+  if (touching && state.playerHp > 0) {
+    state.playerFlashMs = PLAYER_HIT_FLASH_MS;
+    if (state.contactCooldownMs <= 0) {
+      state.playerHp = Math.max(0, state.playerHp - ENEMY_CONTACT_DAMAGE);
+      state.contactCooldownMs = ENEMY_CONTACT_COOLDOWN_MS;
+    }
+  } else {
+    state.playerFlashMs = Math.max(0, state.playerFlashMs - deltaMs);
+  }
 
   followPlayer(state, focus, deltaMs);
 
@@ -201,6 +219,7 @@ function strike(state: HuntState, enemy: EnemySlot, damage: number): void {
   }
   if (enemy.hp <= 0) {
     enemy.active = false;
+    state.kills += 1;
     dropOrb(state, enemy.x, enemy.y);
   }
 }

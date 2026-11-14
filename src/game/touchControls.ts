@@ -60,7 +60,7 @@ export class TouchControls {
       .setVisible(false);
     this.dashGfx = scene.add.graphics().setDepth(22).setScrollFactor(0);
     this.portraitHint = scene.add
-      .text(GAME_WIDTH / 2, 20, PORTRAIT_HINT_TEXT, {
+      .text(GAME_WIDTH / 2, 78, PORTRAIT_HINT_TEXT, {
         fontFamily: HINT_FONT,
         fontSize: '18px',
         color: PORTRAIT_HINT_COLOR,
