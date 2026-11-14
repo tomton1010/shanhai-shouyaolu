@@ -140,8 +140,16 @@ export const ORB_MAGNET_RADIUS = 148;
 export const ORB_MAGNET_SPEED = 480;
 export const ORB_CAP = 32;
 
-/** 被妖物碰到时闪烁多久，毫秒。没有掉血。 */
+/** 被妖物碰到时闪烁多久，毫秒。 */
 export const PLAYER_HIT_FLASH_MS = 180;
+
+/** 一局时长，毫秒。撑满算守住，血量归零提前结束。选符箓时不计时。 */
+export const RUN_DURATION_MS = 3 * 60 * 1000;
+
+export const PLAYER_MAX_HP = 100;
+/** 接触伤害。重叠期间按冷却跳，避免一帧扣光。 */
+export const ENEMY_CONTACT_DAMAGE = 8;
+export const ENEMY_CONTACT_COOLDOWN_MS = 450;
 
 /**
  * 升到下一级要的灵气。下标 0 是 1 级升 2 级。
