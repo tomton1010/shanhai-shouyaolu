@@ -29,6 +29,14 @@ export class LevelUpOverlay {
     this.root = root;
     this.cards = cards;
     this.reroll = reroll;
+    // Bubble on the overlay, after the card button has seen the event, and before window.
+    // Phaser listens for touchstart on window. A card tap removes the button on pointerup,
+    // so the later touchend never arrives and that touch pointer stays down forever.
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel', 'mousedown', 'mouseup'] as const) {
+      this.root.addEventListener(type, (event) => {
+        event.stopPropagation();
+      });
+    }
     const pressReroll = () => {
       this.handlers.onReroll();
     };
@@ -91,6 +99,10 @@ export class LevelUpOverlay {
   }
 
   hide(): void {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && this.root.contains(focused)) {
+      focused.blur();
+    }
     this.root.hidden = true;
     this.cards.replaceChildren();
   }
