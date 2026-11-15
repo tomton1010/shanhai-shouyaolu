@@ -35,17 +35,21 @@ import {
   HINT_FONT,
   HINT_TEXT,
   MAX_FRAME_MS,
+  PLAYER_MAX_HP,
+  REROLLS_PER_RUN,
+  RUN_DURATION_MS,
   TRAIL_FADE_MS,
   WHIP_DURATION_MS,
   WHIP_LENGTH,
 } from '../constants.ts';
 import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
+import { advanceRunClock, formatRunClock } from '../runClock.ts';
+import { RunEndOverlay, type RunOutcome } from '../runEndUi.ts';
 import { TouchControls } from '../touchControls.ts';
-import { REROLLS_PER_RUN } from '../constants.ts';
 
 /**
- * 俯视角场景：走位、冲刺、狌狌自动攻击、灵气拾取。
+ * 俯视角场景：走位、冲刺、狌狌自动攻击、灵气拾取、三分钟一局。
  * 数值在 constants.ts，位移在 motion.ts，战斗在 combat.ts。
  */
 export class PlayScene extends Phaser.Scene {
@@ -58,11 +62,17 @@ export class PlayScene extends Phaser.Scene {
   private whipGfx!: Phaser.GameObjects.Graphics;
   private xpText!: Phaser.GameObjects.Text;
   private xpBar!: Phaser.GameObjects.Graphics;
+  private clockText!: Phaser.GameObjects.Text;
+  private hpText!: Phaser.GameObjects.Text;
+  private hpBar!: Phaser.GameObjects.Graphics;
   private overlay!: LevelUpOverlay;
+  private endOverlay!: RunEndOverlay;
   private stacks: CardStacks = emptyStacks();
   private levelsTaken = 0;
   private xpSpent = 0;
   private rerollsLeft = REROLLS_PER_RUN;
+  private runElapsedMs = 0;
+  private outcome: RunOutcome | null = null;
   private offer: CardId[] | null = null;
   private talisman!: Phaser.GameObjects.Rectangle;
   private up!: Phaser.Input.Keyboard.Key;
@@ -111,7 +121,26 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(30)
       .setScrollFactor(0);
     this.xpBar = this.add.graphics().setDepth(30).setScrollFactor(0);
+    this.clockText = this.add
+      .text(GAME_WIDTH / 2, 24, '', {
+        fontFamily: HINT_FONT,
+        fontSize: '28px',
+        color: '#c44536',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(30)
+      .setScrollFactor(0);
+    this.hpText = this.add
+      .text(36, 68, '', {
+        fontFamily: HINT_FONT,
+        fontSize: '20px',
+        color: COLOR_HINT,
+      })
+      .setDepth(30)
+      .setScrollFactor(0);
+    this.hpBar = this.add.graphics().setDepth(30).setScrollFactor(0);
     this.overlay = new LevelUpOverlay();
+    this.endOverlay = new RunEndOverlay();
     this.refreshHud();
 
     this.touch = new TouchControls(this);
@@ -152,12 +181,14 @@ export class PlayScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     void time;
-    if (this.offer) {
+    if (this.outcome || this.offer) {
       this.consumeDashPress();
       this.touch.consumeDash();
       return;
     }
     const frameMs = Math.min(Math.max(delta, 0), MAX_FRAME_MS);
+    const clock = advanceRunClock(this.runElapsedMs, frameMs);
+    this.runElapsedMs = clock.elapsedMs;
     const mods = modifiersFrom(this.stacks);
     const keyboardX = (this.right.isDown || this.keyD.isDown ? 1 : 0) - (this.left.isDown || this.keyA.isDown ? 1 : 0);
     const keyboardY = (this.down.isDown || this.keyS.isDown ? 1 : 0) - (this.up.isDown || this.keyW.isDown ? 1 : 0);
@@ -211,7 +242,15 @@ export class PlayScene extends Phaser.Scene {
       mods.hunt,
     );
     this.syncHunt();
-    if (!this.offer && this.hunt.xp - this.xpSpent >= xpToNextLevel(this.levelsTaken + 1)) {
+    if (this.hunt.playerHp <= 0) {
+      this.finishRun('loss');
+      return;
+    }
+    if (clock.finished) {
+      this.finishRun('win');
+      return;
+    }
+    if (this.hunt.xp - this.xpSpent >= xpToNextLevel(this.levelsTaken + 1)) {
       this.openOffer();
     }
   }
@@ -363,6 +402,53 @@ export class PlayScene extends Phaser.Scene {
     const filled = progress.need > 0 ? width * (progress.into / progress.need) : 0;
     this.xpBar.fillStyle(COLOR_MALACHITE, 1);
     this.xpBar.fillRect(x, y, Math.max(0, filled), height);
+
+    const hp = Math.max(0, this.hunt.playerHp);
+    this.clockText.setText(formatRunClock(RUN_DURATION_MS - this.runElapsedMs));
+    this.hpText.setText(`生命 ${hp}`);
+    const hpWidth = 140;
+    const hpX = 36;
+    const hpY = 98;
+    this.hpBar.clear();
+    this.hpBar.fillStyle(0x241f1c, 1);
+    this.hpBar.fillRect(hpX, hpY, hpWidth, height);
+    this.hpBar.fillStyle(COLOR_TALISMAN_READY, 1);
+    this.hpBar.fillRect(hpX, hpY, hpWidth * (hp / PLAYER_MAX_HP), height);
+  }
+
+  private finishRun(outcome: RunOutcome): void {
+    if (this.outcome) {
+      return;
+    }
+    this.outcome = outcome;
+    this.offer = null;
+    this.overlay.hide();
+    this.touch.setSuspended(true);
+    this.endOverlay.show(outcome, this.hunt.kills, () => {
+      this.restartRun();
+    });
+  }
+
+  private restartRun(): void {
+    this.endOverlay.hide();
+    this.overlay.hide();
+    this.outcome = null;
+    this.offer = null;
+    this.stacks = emptyStacks();
+    this.levelsTaken = 0;
+    this.xpSpent = 0;
+    this.rerollsLeft = REROLLS_PER_RUN;
+    this.runElapsedMs = 0;
+    const x = GAME_WIDTH / 2;
+    const y = GAME_HEIGHT / 2;
+    this.motion = createMotionState(x, y);
+    this.hunt = createHuntState(x, y);
+    this.player.setPosition(x, y);
+    this.player.setAlpha(1);
+    this.player.setRotation(Math.atan2(this.motion.facingY, this.motion.facingX) + Math.PI / 2);
+    this.talisman.setFillStyle(COLOR_TALISMAN_READY);
+    this.touch.setSuspended(false);
+    this.syncHunt();
   }
 
   private openOffer(): void {
