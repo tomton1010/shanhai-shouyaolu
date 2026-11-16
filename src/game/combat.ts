@@ -8,6 +8,9 @@ import {
   COMPANION_FOLLOW_DISTANCE,
   COMPANION_SPEED,
   ENEMY_CAP,
+  ENEMY_KIND_COUNT,
+  ENEMY_SPAWN_COUNT_LATE,
+  ENEMY_SPAWN_RAMP_MS,
   ENEMY_CONTACT_COOLDOWN_MS,
   ENEMY_CONTACT_DAMAGE,
   ENEMY_CONTACT_RADIUS,
@@ -36,6 +39,14 @@ export interface EnemySlot {
   y: number;
   hp: number;
   hitFlashMs: number;
+  /** 0 宽兽、1 细高、2 圆甲。三种外形，数值相同。 */
+  kind: number;
+}
+
+export interface DamagePopup {
+  x: number;
+  y: number;
+  amount: number;
 }
 
 export interface OrbSlot {
@@ -49,6 +60,8 @@ export interface WhipSlot {
   x: number;
   y: number;
   angle: number;
+  /** 这一下画出来的长度，等于出手时的攻击距离。 */
+  reach: number;
   lifeMs: number;
 }
 
@@ -77,6 +90,7 @@ export interface HuntState {
   orbs: OrbSlot[];
   whips: WhipSlot[];
   slash: SlashMark;
+  popups: DamagePopup[];
 }
 
 export interface HuntFocus {
@@ -123,7 +137,13 @@ export function createHuntState(x: number, y: number): HuntState {
     orbs: Array.from({ length: ORB_CAP }, emptyOrb),
     whips: Array.from({ length: WHIP_CAP }, emptyWhip),
     slash: emptySlash(),
+    popups: [],
   };
+}
+
+/** 开局刷一只；过了 ENEMY_SPAWN_RAMP_MS 每次刷 ENEMY_SPAWN_COUNT_LATE 只。 */
+export function spawnCountFor(timeMs: number): number {
+  return timeMs >= ENEMY_SPAWN_RAMP_MS ? ENEMY_SPAWN_COUNT_LATE : ENEMY_SPAWN_COUNT;
 }
 
 /**
@@ -173,7 +193,8 @@ export function stepHunt(
   state.spawnMs -= deltaMs;
   if (state.spawnMs <= 0) {
     state.spawnMs = ENEMY_SPAWN_INTERVAL_MS;
-    for (let n = 0; n < ENEMY_SPAWN_COUNT; n += 1) {
+    const count = spawnCountFor(state.timeMs);
+    for (let n = 0; n < count; n += 1) {
       spawnEnemy(state, rng);
     }
   }
@@ -213,7 +234,7 @@ export function stepHunt(
   if (state.attackCooldownMs <= 0) {
     const target = nearestEnemy(state, state.companionX, state.companionY, mods.attackRange);
     if (target) {
-      strike(state, target, mods.damage);
+      strike(state, target, mods.damage, mods.attackRange);
       state.attackCooldownMs = mods.attackIntervalMs;
     }
   }
@@ -260,7 +281,7 @@ function followPlayer(state: HuntState, focus: HuntFocus, deltaMs: number): void
   }
 }
 
-function strike(state: HuntState, enemy: EnemySlot, damage: number): void {
+function strike(state: HuntState, enemy: EnemySlot, damage: number, attackRange: number): void {
   state.companionAngle = Math.atan2(enemy.y - state.companionY, enemy.x - state.companionX);
   damageEnemy(state, enemy, damage);
   const whip = state.whips.find((slot) => !slot.active);
@@ -269,11 +290,13 @@ function strike(state: HuntState, enemy: EnemySlot, damage: number): void {
     whip.x = state.companionX;
     whip.y = state.companionY;
     whip.angle = state.companionAngle;
+    whip.reach = attackRange;
     whip.lifeMs = WHIP_DURATION_MS;
   }
 }
 
 function damageEnemy(state: HuntState, enemy: EnemySlot, damage: number): void {
+  state.popups.push({ x: enemy.x, y: enemy.y, amount: damage });
   enemy.hp -= damage;
   enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
   if (enemy.hp <= 0) {
@@ -351,6 +374,7 @@ function spawnEnemy(state: HuntState, rng: () => number): void {
   enemy.y = y;
   enemy.hp = ENEMY_HP;
   enemy.hitFlashMs = 0;
+  enemy.kind = Math.floor(rng() * ENEMY_KIND_COUNT) % ENEMY_KIND_COUNT;
 }
 
 function nearestEnemy(state: HuntState, x: number, y: number, range: number): EnemySlot | null {
@@ -370,7 +394,7 @@ function nearestEnemy(state: HuntState, x: number, y: number, range: number): En
 }
 
 function emptyEnemy(): EnemySlot {
-  return { active: false, x: 0, y: 0, hp: 0, hitFlashMs: 0 };
+  return { active: false, x: 0, y: 0, hp: 0, hitFlashMs: 0, kind: 0 };
 }
 
 function emptyOrb(): OrbSlot {
@@ -378,7 +402,7 @@ function emptyOrb(): OrbSlot {
 }
 
 function emptyWhip(): WhipSlot {
-  return { active: false, x: 0, y: 0, angle: 0, lifeMs: 0 };
+  return { active: false, x: 0, y: 0, angle: 0, reach: 0, lifeMs: 0 };
 }
 
 function emptySlash(): SlashMark {

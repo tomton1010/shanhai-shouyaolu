@@ -13,8 +13,6 @@ import {
   COLOR_AZURITE_STAIN,
   COLOR_COMPANION_EAR,
   COLOR_COMPANION_FUR,
-  COLOR_ENEMY_BODY,
-  COLOR_ENEMY_MARK,
   COLOR_HINT,
   COLOR_INK,
   COLOR_MALACHITE,
@@ -28,21 +26,27 @@ import {
   COLOR_TALISMAN_COOLDOWN,
   COLOR_TALISMAN_DASH,
   COLOR_TALISMAN_READY,
-  DASH_SLASH_DURATION_MS,
-  DASH_SLASH_RANGE,
   COLOR_TILE_A,
   COLOR_TILE_B,
+  DAMAGE_NUMBER_CAP,
+  DAMAGE_NUMBER_COLOR,
+  DAMAGE_NUMBER_MS,
+  DAMAGE_NUMBER_RISE,
+  DASH_SLASH_DURATION_MS,
+  DASH_SLASH_RANGE,
+  ENEMY_LOOKS,
   GAME_HEIGHT,
   GAME_WIDTH,
   HINT_FONT,
   HINT_TEXT,
+  MAP_LABEL_COLOR,
+  MAP_NAME,
   MAX_FRAME_MS,
   PLAYER_MAX_HP,
   REROLLS_PER_RUN,
   RUN_DURATION_MS,
   TRAIL_FADE_MS,
   WHIP_DURATION_MS,
-  WHIP_LENGTH,
 } from '../constants.ts';
 import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
@@ -60,6 +64,9 @@ export class PlayScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container;
   private companion!: Phaser.GameObjects.Container;
   private enemyViews: Phaser.GameObjects.Container[] = [];
+  private enemyBodies: Phaser.GameObjects.Graphics[] = [];
+  private enemyKindDrawn: number[] = [];
+  private floaters: { text: Phaser.GameObjects.Text; lifeMs: number; x: number; y: number }[] = [];
   private orbViews: Phaser.GameObjects.Arc[] = [];
   private whipGfx!: Phaser.GameObjects.Graphics;
   private slashGfx!: Phaser.GameObjects.Graphics;
@@ -186,12 +193,13 @@ export class PlayScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     void time;
+    const frameMs = Math.min(Math.max(delta, 0), MAX_FRAME_MS);
+    this.tickFloaters(frameMs);
     if (this.outcome || this.offer) {
       this.consumeDashPress();
       this.touch.consumeDash();
       return;
     }
-    const frameMs = Math.min(Math.max(delta, 0), MAX_FRAME_MS);
     const clock = advanceRunClock(this.runElapsedMs, frameMs);
     this.runElapsedMs = clock.elapsedMs;
     const mods = modifiersFrom(this.stacks);
@@ -280,13 +288,30 @@ export class PlayScene extends Phaser.Scene {
       }
     }
 
+    ground.fillStyle(0x171614, 1);
+    ground.fillRect(0, 128, 420, 46);
+    ground.fillRect(860, 150, 420, 52);
+    ground.fillRect(80, 520, 260, 34);
+    ground.fillStyle(COLOR_MALACHITE_DEEP, 1);
+    ground.fillEllipse(150, 250, 150, 90);
+    ground.fillEllipse(1120, 220, 130, 80);
+    ground.fillEllipse(1040, 560, 170, 100);
+    ground.fillEllipse(220, 600, 120, 70);
     ground.fillStyle(COLOR_AZURITE_STAIN, 1);
-    ground.fillEllipse(300, 190, 280, 120);
-    ground.fillEllipse(860, 250, 180, 80);
+    ground.fillEllipse(700, 470, 420, 46);
     ground.fillStyle(COLOR_OCHRE_STAIN, 1);
-    ground.fillEllipse(980, 540, 320, 140);
-    ground.fillEllipse(420, 560, 200, 90);
+    ground.fillEllipse(520, 200, 160, 70);
     ground.setDepth(0);
+
+    this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT - 18, MAP_NAME, {
+        fontFamily: HINT_FONT,
+        fontSize: '18px',
+        color: MAP_LABEL_COLOR,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(2)
+      .setScrollFactor(0);
   }
 
   private createPlayer(x: number, y: number): Phaser.GameObjects.Container {
@@ -330,17 +355,41 @@ export class PlayScene extends Phaser.Scene {
   private createEnemyViews(): void {
     for (let index = 0; index < this.hunt.enemies.length; index += 1) {
       const body = this.add.graphics();
-      body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
-      body.fillRoundedRect(-26, -16, 52, 32, 2);
-      body.fillStyle(COLOR_ENEMY_BODY, 1);
-      body.fillRoundedRect(-24, -14, 48, 28, 2);
-      body.fillStyle(COLOR_ENEMY_MARK, 1);
-      body.fillRect(-6, -6, 16, 8);
+      this.paintEnemy(body, 0);
       const view = this.add.container(0, 0, [body]);
       view.setDepth(4);
       view.setVisible(false);
+      this.enemyBodies.push(body);
+      this.enemyKindDrawn.push(-1);
       this.enemyViews.push(view);
     }
+  }
+
+  private paintEnemy(body: Phaser.GameObjects.Graphics, kind: number): void {
+    const look = ENEMY_LOOKS[kind] ?? ENEMY_LOOKS[0];
+    body.clear();
+    body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
+    if (kind === 1) {
+      body.fillRect(-16, -30, 32, 60);
+      body.fillStyle(look.body, 1);
+      body.fillRect(-14, -28, 28, 56);
+      body.fillStyle(look.mark, 1);
+      body.fillRect(-10, -28, 20, 8);
+      return;
+    }
+    if (kind === 2) {
+      body.fillCircle(0, 0, 24);
+      body.fillStyle(look.body, 1);
+      body.fillCircle(0, 0, 20);
+      body.fillStyle(look.mark, 1);
+      body.fillCircle(0, -1, 5);
+      return;
+    }
+    body.fillRoundedRect(-26, -16, 52, 32, 2);
+    body.fillStyle(look.body, 1);
+    body.fillRoundedRect(-24, -14, 48, 28, 2);
+    body.fillStyle(look.mark, 1);
+    body.fillRect(-6, -6, 16, 8);
   }
 
   private createOrbViews(): void {
@@ -366,6 +415,10 @@ export class PlayScene extends Phaser.Scene {
       if (!enemy.active) {
         continue;
       }
+      if (this.enemyKindDrawn[index] !== enemy.kind) {
+        this.paintEnemy(this.enemyBodies[index], enemy.kind);
+        this.enemyKindDrawn[index] = enemy.kind;
+      }
       view.setPosition(enemy.x, enemy.y);
       view.setRotation(Math.atan2(this.motion.y - enemy.y, this.motion.x - enemy.x));
       view.setAlpha(enemy.hitFlashMs > 0 ? 0.45 : 1);
@@ -386,11 +439,12 @@ export class PlayScene extends Phaser.Scene {
         continue;
       }
       const alpha = Math.max(0.2, whip.lifeMs / WHIP_DURATION_MS);
-      const reachX = whip.x + Math.cos(whip.angle) * WHIP_LENGTH;
-      const reachY = whip.y + Math.sin(whip.angle) * WHIP_LENGTH;
+      const length = whip.reach;
+      const reachX = whip.x + Math.cos(whip.angle) * length;
+      const reachY = whip.y + Math.sin(whip.angle) * length;
       const sweep = 0.7;
-      const sideX = whip.x + Math.cos(whip.angle + sweep) * (WHIP_LENGTH * 0.82);
-      const sideY = whip.y + Math.sin(whip.angle + sweep) * (WHIP_LENGTH * 0.82);
+      const sideX = whip.x + Math.cos(whip.angle + sweep) * (length * 0.82);
+      const sideY = whip.y + Math.sin(whip.angle + sweep) * (length * 0.82);
       this.whipGfx.lineStyle(6, COLOR_MALACHITE, alpha);
       this.whipGfx.lineBetween(whip.x, whip.y, reachX, reachY);
       this.whipGfx.lineStyle(3, COLOR_MALACHITE_DEEP, alpha);
@@ -398,8 +452,67 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.drawSlash();
+    this.drainPopups();
 
     this.refreshHud();
+  }
+
+  private drainPopups(): void {
+    for (const popup of this.hunt.popups) {
+      this.spawnFloater(popup.x, popup.y, popup.amount);
+    }
+    this.hunt.popups.length = 0;
+  }
+
+  private spawnFloater(x: number, y: number, amount: number): void {
+    let slot = this.floaters.find((floater) => floater.lifeMs <= 0);
+    if (!slot) {
+      if (this.floaters.length >= DAMAGE_NUMBER_CAP) {
+        slot = this.floaters.reduce((older, floater) => (floater.lifeMs < older.lifeMs ? floater : older));
+      } else {
+        const text = this.add
+          .text(0, 0, '', {
+            fontFamily: HINT_FONT,
+            fontSize: '22px',
+            color: DAMAGE_NUMBER_COLOR,
+          })
+          .setOrigin(0.5, 1)
+          .setDepth(12)
+          .setScrollFactor(0);
+        slot = { text, lifeMs: 0, x: 0, y: 0 };
+        this.floaters.push(slot);
+      }
+    }
+    slot.lifeMs = DAMAGE_NUMBER_MS;
+    slot.x = x;
+    slot.y = y - 16;
+    slot.text.setText(String(amount));
+    slot.text.setPosition(slot.x, slot.y);
+    slot.text.setAlpha(1);
+    slot.text.setVisible(true);
+  }
+
+  private tickFloaters(deltaMs: number): void {
+    for (const floater of this.floaters) {
+      if (floater.lifeMs <= 0) {
+        continue;
+      }
+      floater.lifeMs -= deltaMs;
+      const remaining = Math.max(0, floater.lifeMs);
+      const progress = 1 - remaining / DAMAGE_NUMBER_MS;
+      floater.text.setPosition(floater.x, floater.y - DAMAGE_NUMBER_RISE * progress);
+      floater.text.setAlpha(1 - progress);
+      if (floater.lifeMs <= 0) {
+        floater.text.setVisible(false);
+      }
+    }
+  }
+
+  private clearFloaters(): void {
+    for (const floater of this.floaters) {
+      floater.lifeMs = 0;
+      floater.text.setVisible(false);
+    }
   }
 
   private refreshHud(): void {
@@ -461,6 +574,7 @@ export class PlayScene extends Phaser.Scene {
     this.player.setRotation(Math.atan2(this.motion.facingY, this.motion.facingX) + Math.PI / 2);
     this.talisman.setFillStyle(COLOR_TALISMAN_READY);
     this.slashHit.clear();
+    this.clearFloaters();
     this.touch.setSuspended(false);
     this.syncHunt();
   }
