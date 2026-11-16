@@ -61,6 +61,15 @@ export const DASH_BUTTON_Y = GAME_HEIGHT - DASH_BUTTON_MARGIN - DASH_BUTTON_RADI
 export const HINT_TEXT = '走位即可';
 export const PORTRAIT_HINT_TEXT = '横屏体验更好';
 
+/** 只在粗指针（手机）上出现。文字是点下去之后的布局，不是当前这一屏。 */
+export const ORIENT_BUTTON_MIN_WIDTH = 72;
+export const ORIENT_BUTTON_MIN_HEIGHT = 44;
+export const ORIENT_BUTTON_MARGIN = 12;
+export const ORIENT_GO_LANDSCAPE = '横屏';
+export const ORIENT_GO_PORTRAIT = '竖屏';
+export const ORIENT_GO_LANDSCAPE_ARIA = '切换到横屏';
+export const ORIENT_GO_PORTRAIT_ARIA = '切换到竖屏';
+
 export const HINT_FONT =
   '"WenQuanYi Micro Hei", "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", "Heiti SC", sans-serif';
 
