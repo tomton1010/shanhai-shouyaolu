@@ -111,15 +111,25 @@ export const COMPANION_ATTACK_RANGE = 220;
 /** 两次藤鞭之间的间隔，毫秒。 */
 export const COMPANION_ATTACK_INTERVAL_MS = 640;
 export const COMPANION_DAMAGE = 1;
+
+/**
+ * 冲刺顺手砍一刀。伤害够收掉一只满血小怪。
+ * 范围是到冲刺线段的距离，像素。同一次冲刺里每只妖物只吃一刀。
+ */
+export const DASH_SLASH_DAMAGE = 2;
+export const DASH_SLASH_RANGE = 78;
+/** 刀光停留时间，毫秒。盖过冲刺本身，松手后还能看见这一刀。 */
+export const DASH_SLASH_DURATION_MS = 180;
 /** 藤鞭扫出的长度，像素。 */
 export const WHIP_LENGTH = 132;
 export const WHIP_DURATION_MS = 150;
 export const WHIP_CAP = 4;
 
-export const ENEMY_HP = 3;
+/** 小怪生命。藤鞭 1 点，两下鞭或一次冲刺斩都能收掉。 */
+export const ENEMY_HP = 2;
 /** 追玩家的速度，像素/秒。慢于玩家，方便走位。 */
 export const ENEMY_SPEED = 108;
-/** 碰到玩家的距离，像素。只触发闪烁，不扣血。 */
+/** 碰到玩家的距离，像素。按冷却扣生命，并闪烁。 */
 export const ENEMY_CONTACT_RADIUS = 58;
 export const ENEMY_RADIUS = 22;
 /** 每隔这么久从画面外刷一只。 */

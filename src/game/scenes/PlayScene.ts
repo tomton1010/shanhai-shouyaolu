@@ -8,7 +8,7 @@ import {
   type CardId,
   type CardStacks,
 } from '../cards.ts';
-import { createHuntState, stepHunt, type HuntState } from '../combat.ts';
+import { applyDashSlash, createHuntState, stepHunt, type EnemySlot, type HuntState } from '../combat.ts';
 import {
   COLOR_AZURITE_STAIN,
   COLOR_COMPANION_EAR,
@@ -28,6 +28,8 @@ import {
   COLOR_TALISMAN_COOLDOWN,
   COLOR_TALISMAN_DASH,
   COLOR_TALISMAN_READY,
+  DASH_SLASH_DURATION_MS,
+  DASH_SLASH_RANGE,
   COLOR_TILE_A,
   COLOR_TILE_B,
   GAME_HEIGHT,
@@ -60,6 +62,8 @@ export class PlayScene extends Phaser.Scene {
   private enemyViews: Phaser.GameObjects.Container[] = [];
   private orbViews: Phaser.GameObjects.Arc[] = [];
   private whipGfx!: Phaser.GameObjects.Graphics;
+  private slashGfx!: Phaser.GameObjects.Graphics;
+  private slashHit = new Set<EnemySlot>();
   private xpText!: Phaser.GameObjects.Text;
   private xpBar!: Phaser.GameObjects.Graphics;
   private clockText!: Phaser.GameObjects.Text;
@@ -102,6 +106,7 @@ export class PlayScene extends Phaser.Scene {
     this.createEnemyViews();
     this.createOrbViews();
     this.whipGfx = this.add.graphics().setDepth(10);
+    this.slashGfx = this.add.graphics().setDepth(11);
 
     this.add
       .text(36, 28, HINT_TEXT, {
@@ -212,6 +217,9 @@ export class PlayScene extends Phaser.Scene {
       },
       frameMs,
     );
+    if (step.dashStarted) {
+      this.slashHit.clear();
+    }
     this.motion = step.state;
     this.player.setPosition(this.motion.x, this.motion.y);
 
@@ -241,6 +249,9 @@ export class PlayScene extends Phaser.Scene {
       Math.random,
       mods.hunt,
     );
+    if (step.bursting) {
+      applyDashSlash(this.hunt, fromX, fromY, this.motion.x, this.motion.y, this.slashHit, step.dashStarted);
+    }
     this.syncHunt();
     if (this.hunt.playerHp <= 0) {
       this.finishRun('loss');
@@ -386,6 +397,8 @@ export class PlayScene extends Phaser.Scene {
       this.whipGfx.lineBetween(whip.x, whip.y, sideX, sideY);
     }
 
+    this.drawSlash();
+
     this.refreshHud();
   }
 
@@ -447,8 +460,30 @@ export class PlayScene extends Phaser.Scene {
     this.player.setAlpha(1);
     this.player.setRotation(Math.atan2(this.motion.facingY, this.motion.facingX) + Math.PI / 2);
     this.talisman.setFillStyle(COLOR_TALISMAN_READY);
+    this.slashHit.clear();
     this.touch.setSuspended(false);
     this.syncHunt();
+  }
+
+  private drawSlash(): void {
+    const slash = this.hunt.slash;
+    this.slashGfx.clear();
+    if (!slash.active) {
+      return;
+    }
+    const alpha = Math.max(0.25, slash.lifeMs / DASH_SLASH_DURATION_MS);
+    const dx = slash.x2 - slash.x1;
+    const dy = slash.y2 - slash.y1;
+    const length = Math.hypot(dx, dy);
+    const nx = length > 0.001 ? -dy / length : 1;
+    const ny = length > 0.001 ? dx / length : 0;
+    const midX = (slash.x1 + slash.x2) / 2;
+    const midY = (slash.y1 + slash.y2) / 2;
+    const half = DASH_SLASH_RANGE * 0.45;
+    this.slashGfx.lineStyle(5, COLOR_TALISMAN_DASH, alpha);
+    this.slashGfx.lineBetween(slash.x1, slash.y1, slash.x2, slash.y2);
+    this.slashGfx.lineStyle(3, COLOR_TALISMAN_READY, alpha);
+    this.slashGfx.lineBetween(midX - nx * half, midY - ny * half, midX + nx * half, midY + ny * half);
   }
 
   private openOffer(): void {
