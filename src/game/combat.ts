@@ -187,7 +187,7 @@ export function applyDashSlash(
     if (!enemy.active || alreadyHit.has(enemy)) {
       continue;
     }
-    if (distanceToSegment(enemy.x, enemy.y, fromX, fromY, toX, toY) > DASH_SLASH_RANGE) {
+    if (!inDashBand(enemy.x, enemy.y, fromX, fromY, toX, toY)) {
       continue;
     }
     alreadyHit.add(enemy);
@@ -298,7 +298,12 @@ function followPlayer(state: HuntState, focus: HuntFocus, deltaMs: number): void
 
 function strike(state: HuntState, enemy: EnemySlot, damage: number, attackRange: number): void {
   state.companionAngle = Math.atan2(enemy.y - state.companionY, enemy.x - state.companionX);
-  damageEnemy(state, enemy, damage);
+  for (const victim of state.enemies) {
+    if (!victim.active || !inWhipArea(state.companionX, state.companionY, attackRange, victim.x, victim.y)) {
+      continue;
+    }
+    damageEnemy(state, victim, damage);
+  }
   const whip = state.whips.find((slot) => !slot.active);
   if (whip) {
     whip.active = true;
@@ -422,6 +427,24 @@ function emptyWhip(): WhipSlot {
 
 function emptySlash(): SlashMark {
   return { active: false, x1: 0, y1: 0, x2: 0, y2: 0, lifeMs: 0 };
+}
+
+/** 藤鞭这一下的范围：以狌狌为圆心的圆，边界算打中。 */
+export function inWhipArea(originX: number, originY: number, range: number, enemyX: number, enemyY: number): boolean {
+  return Math.hypot(enemyX - originX, enemyY - originY) <= range;
+}
+
+/** 冲刺这一段的范围：到线段的距离不超过带子半径，端点外的半圆也算。 */
+export function inDashBand(
+  enemyX: number,
+  enemyY: number,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  radius = DASH_SLASH_RANGE,
+): boolean {
+  return distanceToSegment(enemyX, enemyY, fromX, fromY, toX, toY) <= radius;
 }
 
 function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
