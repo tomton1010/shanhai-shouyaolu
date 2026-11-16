@@ -8,18 +8,15 @@ import {
   COMPANION_FOLLOW_DISTANCE,
   COMPANION_SPEED,
   ENEMY_CAP,
-  ENEMY_KIND_COUNT,
   ENEMY_SPAWN_COUNT_LATE,
   ENEMY_SPAWN_RAMP_MS,
   ENEMY_CONTACT_COOLDOWN_MS,
   ENEMY_CONTACT_DAMAGE,
-  ENEMY_CONTACT_RADIUS,
-  ENEMY_HP,
   ENEMY_HIT_FLASH_MS,
+  ENEMY_PROFILES,
   ENEMY_SPAWN_COUNT,
   ENEMY_SPAWN_INTERVAL_MS,
   ENEMY_SPAWN_MARGIN,
-  ENEMY_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
   ORB_CAP,
@@ -146,6 +143,23 @@ export function spawnCountFor(timeMs: number): number {
   return timeMs >= ENEMY_SPAWN_RAMP_MS ? ENEMY_SPAWN_COUNT_LATE : ENEMY_SPAWN_COUNT;
 }
 
+export function enemyProfile(kind: number): (typeof ENEMY_PROFILES)[number] {
+  return ENEMY_PROFILES[kind] ?? ENEMY_PROFILES[0];
+}
+
+/** 按权重抽一种。rng 为 0 时落在最常见的宽兽上。 */
+export function rollEnemyKind(rng: () => number): number {
+  const total = ENEMY_PROFILES.reduce((sum, profile) => sum + profile.weight, 0);
+  let roll = rng() * total;
+  for (let kind = 0; kind < ENEMY_PROFILES.length; kind += 1) {
+    roll -= ENEMY_PROFILES[kind].weight;
+    if (roll < 0) {
+      return kind;
+    }
+  }
+  return ENEMY_PROFILES.length - 1;
+}
+
 /**
  * 冲刺这一帧扫过的线段。alreadyHit 在同一次冲刺里保留，避免每一帧重复扣血。
  * started 为真时刀光从这一帧的起点重新画。
@@ -207,12 +221,13 @@ export function stepHunt(
     const dx = focus.x - enemy.x;
     const dy = focus.y - enemy.y;
     const distance = Math.hypot(dx, dy);
+    const profile = enemyProfile(enemy.kind);
     if (distance > 0.001) {
-      const step = Math.min(distance, ENEMY_SPEED * (deltaMs / 1000));
+      const step = Math.min(distance, profile.speed * (deltaMs / 1000));
       enemy.x += (dx / distance) * step;
       enemy.y += (dy / distance) * step;
     }
-    if (Math.hypot(focus.x - enemy.x, focus.y - enemy.y) <= ENEMY_CONTACT_RADIUS) {
+    if (Math.hypot(focus.x - enemy.x, focus.y - enemy.y) <= profile.contactRadius) {
       touching = true;
     }
     enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
@@ -372,9 +387,9 @@ function spawnEnemy(state: HuntState, rng: () => number): void {
   enemy.active = true;
   enemy.x = x;
   enemy.y = y;
-  enemy.hp = ENEMY_HP;
+  enemy.kind = rollEnemyKind(rng);
+  enemy.hp = enemyProfile(enemy.kind).hp;
   enemy.hitFlashMs = 0;
-  enemy.kind = Math.floor(rng() * ENEMY_KIND_COUNT) % ENEMY_KIND_COUNT;
 }
 
 function nearestEnemy(state: HuntState, x: number, y: number, range: number): EnemySlot | null {
