@@ -64,7 +64,9 @@ target.y = 360;
 quiet(hunt, 16, () => 0.99);
 assert(target.hp === ENEMY_HP - COMPANION_DAMAGE, `first whip damages, hp=${target.hp}`);
 assert(hunt.xp === 0, 'damage is not xp');
-assert(hunt.whips.some((whip) => whip.active), 'whip is visible');
+const shown = hunt.whips.find((whip) => whip.active);
+assert(Boolean(shown), 'whip is visible');
+assert(shown?.reach === COMPANION_ATTACK_RANGE, `whip length is the attack range, reach=${shown?.reach}`);
 
 const far = createHuntState(100, 100);
 far.spawnMs = 10_000;

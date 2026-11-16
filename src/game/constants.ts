@@ -95,9 +95,22 @@ export const COLOR_MALACHITE_DEEP = 0x1b4630;
 export const COLOR_COMPANION_FUR = 0x241f1c;
 export const COLOR_COMPANION_EAR = 0xe6dcc8;
 
-/** 小怪比玩家暗，赭石标记用来和朱砂、石绿分开。 */
+/** 小怪比玩家暗。三种外形各用一色，饱和度仍低于朱砂符纸。 */
 export const COLOR_ENEMY_BODY = 0x3a3028;
 export const COLOR_ENEMY_MARK = 0x8a5a32;
+/** 细高的那种，石青灰，不是水行特效。 */
+export const COLOR_ENEMY_TALL = 0x314047;
+export const COLOR_ENEMY_TALL_MARK = 0x7f9290;
+/** 圆甲，比地面深，骨色只是一小点。 */
+export const COLOR_ENEMY_ROUND = 0x2a221c;
+export const COLOR_ENEMY_ROUND_MARK = 0xd5c8b4;
+
+export const ENEMY_KIND_COUNT = 3;
+export const ENEMY_LOOKS = [
+  { body: COLOR_ENEMY_BODY, mark: COLOR_ENEMY_MARK },
+  { body: COLOR_ENEMY_TALL, mark: COLOR_ENEMY_TALL_MARK },
+  { body: COLOR_ENEMY_ROUND, mark: COLOR_ENEMY_ROUND_MARK },
+] as const;
 
 /** 狌狌身长，和玩家同级，不要做成大头。 */
 export const COMPANION_BODY_HEIGHT = 64;
@@ -120,12 +133,14 @@ export const DASH_SLASH_DAMAGE = 2;
 export const DASH_SLASH_RANGE = 78;
 /** 刀光停留时间，毫秒。盖过冲刺本身，松手后还能看见这一刀。 */
 export const DASH_SLASH_DURATION_MS = 180;
-/** 藤鞭扫出的长度，像素。 */
-export const WHIP_LENGTH = 132;
+/**
+ * 藤鞭画出来的长度就是这一下用的攻击距离，不再用固定像素。
+ * 长鞭叠上去以后，特效和能打到的距离一起变长。
+ */
 export const WHIP_DURATION_MS = 150;
 export const WHIP_CAP = 4;
 
-/** 小怪生命。藤鞭 1 点，两下鞭或一次冲刺斩都能收掉。 */
+/** 三种小怪共用。藤鞭 1 点，两下鞭或一次冲刺斩都能收掉。 */
 export const ENEMY_HP = 2;
 /** 追玩家的速度，像素/秒。慢于玩家，方便走位。 */
 export const ENEMY_SPEED = 108;
@@ -136,7 +151,11 @@ export const ENEMY_RADIUS = 22;
 export const ENEMY_SPAWN_INTERVAL_MS = 1200;
 /** 每个间隔刷出的数量。 */
 export const ENEMY_SPAWN_COUNT = 1;
-export const ENEMY_CAP = 16;
+/** 开局过了这段时间后，每次多刷一只，后半局才会在屏上堆到几十只。 */
+export const ENEMY_SPAWN_RAMP_MS = 40_000;
+export const ENEMY_SPAWN_COUNT_LATE = 2;
+/** 同屏上限。要够「几十只」，又不要把接触伤害做成按只数叠加。 */
+export const ENEMY_CAP = 32;
 /** 出生点在画面外多少像素。 */
 export const ENEMY_SPAWN_MARGIN = 56;
 export const ENEMY_HIT_FLASH_MS = 90;
@@ -148,7 +167,16 @@ export const ORB_PICKUP_RADIUS = 52;
 /** 开始被吸向人的距离，像素。 */
 export const ORB_MAGNET_RADIUS = 148;
 export const ORB_MAGNET_SPEED = 480;
-export const ORB_CAP = 32;
+export const ORB_CAP = 48;
+
+export const MAP_NAME = '招摇之山';
+export const MAP_LABEL_COLOR = '#6e675e';
+
+/** 伤害数字。先不按五行上色。 */
+export const DAMAGE_NUMBER_MS = 520;
+export const DAMAGE_NUMBER_RISE = 40;
+export const DAMAGE_NUMBER_COLOR = '#eadcc8';
+export const DAMAGE_NUMBER_CAP = 28;
 
 /** 被妖物碰到时闪烁多久，毫秒。 */
 export const PLAYER_HIT_FLASH_MS = 180;
