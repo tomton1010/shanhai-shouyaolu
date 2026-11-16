@@ -2,6 +2,9 @@ import {
   COMPANION_ATTACK_INTERVAL_MS,
   COMPANION_ATTACK_RANGE,
   COMPANION_DAMAGE,
+  DASH_SLASH_DAMAGE,
+  DASH_SLASH_DURATION_MS,
+  DASH_SLASH_RANGE,
   COMPANION_FOLLOW_DISTANCE,
   COMPANION_SPEED,
   ENEMY_CAP,
@@ -49,6 +52,15 @@ export interface WhipSlot {
   lifeMs: number;
 }
 
+export interface SlashMark {
+  active: boolean;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  lifeMs: number;
+}
+
 export interface HuntState {
   companionX: number;
   companionY: number;
@@ -64,6 +76,7 @@ export interface HuntState {
   enemies: EnemySlot[];
   orbs: OrbSlot[];
   whips: WhipSlot[];
+  slash: SlashMark;
 }
 
 export interface HuntFocus {
@@ -109,7 +122,43 @@ export function createHuntState(x: number, y: number): HuntState {
     enemies: Array.from({ length: ENEMY_CAP }, emptyEnemy),
     orbs: Array.from({ length: ORB_CAP }, emptyOrb),
     whips: Array.from({ length: WHIP_CAP }, emptyWhip),
+    slash: emptySlash(),
   };
+}
+
+/**
+ * 冲刺这一帧扫过的线段。alreadyHit 在同一次冲刺里保留，避免每一帧重复扣血。
+ * started 为真时刀光从这一帧的起点重新画。
+ */
+export function applyDashSlash(
+  state: HuntState,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  alreadyHit: Set<EnemySlot>,
+  started: boolean,
+): void {
+  const mark = state.slash;
+  if (started || !mark.active) {
+    mark.x1 = fromX;
+    mark.y1 = fromY;
+    mark.lifeMs = DASH_SLASH_DURATION_MS;
+  }
+  mark.active = true;
+  mark.x2 = toX;
+  mark.y2 = toY;
+
+  for (const enemy of state.enemies) {
+    if (!enemy.active || alreadyHit.has(enemy)) {
+      continue;
+    }
+    if (distanceToSegment(enemy.x, enemy.y, fromX, fromY, toX, toY) > DASH_SLASH_RANGE) {
+      continue;
+    }
+    alreadyHit.add(enemy);
+    damageEnemy(state, enemy, DASH_SLASH_DAMAGE);
+  }
 }
 
 /** 推进一帧。rng 返回 [0, 1)。接触按冷却扣玩家生命，并闪烁。 */
@@ -179,6 +228,12 @@ export function stepHunt(
       whip.active = false;
     }
   }
+  if (state.slash.active) {
+    state.slash.lifeMs -= deltaMs;
+    if (state.slash.lifeMs <= 0) {
+      state.slash.active = false;
+    }
+  }
 }
 
 export function countActive(slots: { active: boolean }[]): number {
@@ -207,8 +262,7 @@ function followPlayer(state: HuntState, focus: HuntFocus, deltaMs: number): void
 
 function strike(state: HuntState, enemy: EnemySlot, damage: number): void {
   state.companionAngle = Math.atan2(enemy.y - state.companionY, enemy.x - state.companionX);
-  enemy.hp -= damage;
-  enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
+  damageEnemy(state, enemy, damage);
   const whip = state.whips.find((slot) => !slot.active);
   if (whip) {
     whip.active = true;
@@ -217,6 +271,11 @@ function strike(state: HuntState, enemy: EnemySlot, damage: number): void {
     whip.angle = state.companionAngle;
     whip.lifeMs = WHIP_DURATION_MS;
   }
+}
+
+function damageEnemy(state: HuntState, enemy: EnemySlot, damage: number): void {
+  enemy.hp -= damage;
+  enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
   if (enemy.hp <= 0) {
     enemy.active = false;
     state.kills += 1;
@@ -320,4 +379,19 @@ function emptyOrb(): OrbSlot {
 
 function emptyWhip(): WhipSlot {
   return { active: false, x: 0, y: 0, angle: 0, lifeMs: 0 };
+}
+
+function emptySlash(): SlashMark {
+  return { active: false, x1: 0, y1: 0, x2: 0, y2: 0, lifeMs: 0 };
+}
+
+function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const lengthSquared = abx * abx + aby * aby;
+  if (lengthSquared <= 0.0001) {
+    return Math.hypot(px - ax, py - ay);
+  }
+  const t = Math.min(1, Math.max(0, ((px - ax) * abx + (py - ay) * aby) / lengthSquared));
+  return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
 }
