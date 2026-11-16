@@ -83,9 +83,11 @@ export class TouchControls {
     this.scene.input.on('pointerupoutside', this.onPointerUp, this);
     window.addEventListener('resize', this.onResize);
     window.addEventListener('orientationchange', this.onResize);
+    window.addEventListener('shanhai-presented', this.onResize);
     this.scene.events.once('shutdown', () => {
       window.removeEventListener('resize', this.onResize);
       window.removeEventListener('orientationchange', this.onResize);
+      window.removeEventListener('shanhai-presented', this.onResize);
     });
     this.refreshOrientation();
     this.redrawDash(true, false, 0);
@@ -187,7 +189,8 @@ export class TouchControls {
   }
 
   private refreshOrientation(): void {
-    const portrait = window.innerHeight > window.innerWidth;
+    const presented = document.documentElement.dataset.presented;
+    const portrait = presented === 'portrait' || (presented !== 'landscape' && window.innerHeight > window.innerWidth);
     this.portraitHint.setVisible(this.enabled && portrait);
   }
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { COLOR_INK, GAME_HEIGHT, GAME_WIDTH } from './game/constants.ts';
+import { installOrientationToggle } from './game/orientUi.ts';
 import { PlayScene } from './game/scenes/PlayScene.ts';
 
 installViewportGuards();
@@ -25,6 +26,7 @@ const game = new Phaser.Game({
   scene: [PlayScene],
 });
 
+installOrientationToggle(game);
 void game;
 
 function installViewportGuards(): void {
