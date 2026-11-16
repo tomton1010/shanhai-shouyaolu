@@ -128,24 +128,48 @@ export const COMPANION_DAMAGE = 1;
 /**
  * 冲刺顺手砍一刀。伤害够收掉一只满血小怪。
  * 范围是到冲刺线段的距离，像素。同一次冲刺里每只妖物只吃一刀。
+ * 刀光只沿这一段轻轻弯一下，弯出的距离不超过伤害范围。
  */
 export const DASH_SLASH_DAMAGE = 2;
 export const DASH_SLASH_RANGE = 78;
+export const DASH_SLASH_BOW_PX = 18;
 /** 刀光停留时间，毫秒。盖过冲刺本身，松手后还能看见这一刀。 */
 export const DASH_SLASH_DURATION_MS = 180;
 /**
  * 藤鞭画出来的长度就是这一下用的攻击距离，不再用固定像素。
  * 长鞭叠上去以后，特效和能打到的距离一起变长。
+ * 鞭身只弯 WHIP_BEND_PX，不再从同一起点另画一条斜线。
  */
+export const WHIP_BEND_PX = 16;
 export const WHIP_DURATION_MS = 150;
 export const WHIP_CAP = 4;
 
-/** 三种小怪共用。藤鞭 1 点，两下鞭或一次冲刺斩都能收掉。 */
+/**
+ * 宽兽是基准，和之前的手感一样。细高的快但脆，圆甲慢但多 1 点血，而且少见。
+ * 冲刺斩是 2 点：宽兽和细高一刀收掉，圆甲留下 1 点。
+ */
 export const ENEMY_HP = 2;
-/** 追玩家的速度，像素/秒。慢于玩家，方便走位。 */
 export const ENEMY_SPEED = 108;
-/** 碰到玩家的距离，像素。按冷却扣生命，并闪烁。 */
 export const ENEMY_CONTACT_RADIUS = 58;
+export const ENEMY_TALL_HP = 1;
+export const ENEMY_TALL_SPEED = 150;
+export const ENEMY_TALL_CONTACT_RADIUS = 40;
+export const ENEMY_ROUND_HP = 3;
+export const ENEMY_ROUND_SPEED = 64;
+export const ENEMY_ROUND_CONTACT_RADIUS = 72;
+/** 刷新权重。宽兽最多，圆甲最少。 */
+export const ENEMY_KIND_WEIGHTS = [4, 2, 1] as const;
+
+export const ENEMY_PROFILES = [
+  { hp: ENEMY_HP, speed: ENEMY_SPEED, contactRadius: ENEMY_CONTACT_RADIUS, weight: ENEMY_KIND_WEIGHTS[0] },
+  { hp: ENEMY_TALL_HP, speed: ENEMY_TALL_SPEED, contactRadius: ENEMY_TALL_CONTACT_RADIUS, weight: ENEMY_KIND_WEIGHTS[1] },
+  {
+    hp: ENEMY_ROUND_HP,
+    speed: ENEMY_ROUND_SPEED,
+    contactRadius: ENEMY_ROUND_CONTACT_RADIUS,
+    weight: ENEMY_KIND_WEIGHTS[2],
+  },
+] as const;
 export const ENEMY_RADIUS = 22;
 /** 每隔这么久从画面外刷一只。 */
 export const ENEMY_SPAWN_INTERVAL_MS = 1200;

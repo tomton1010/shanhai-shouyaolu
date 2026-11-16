@@ -8,6 +8,9 @@ import {
   ENEMY_HP,
   ENEMY_KIND_COUNT,
   ENEMY_LOOKS,
+  ENEMY_PROFILES,
+  ENEMY_ROUND_HP,
+  ENEMY_TALL_HP,
   ENEMY_SPAWN_COUNT,
   ENEMY_SPAWN_COUNT_LATE,
   ENEMY_SPAWN_RAMP_MS,
@@ -16,6 +19,8 @@ import {
   applyDashSlash,
   createHuntState,
   defaultHuntMods,
+  enemyProfile,
+  rollEnemyKind,
   spawnCountFor,
   stepHunt,
   type EnemySlot,
@@ -30,7 +35,16 @@ function assert(condition: boolean, message: string): void {
   }
 }
 
-assert(ENEMY_HP === 2, `shared enemy hp stays 2, got ${ENEMY_HP}`);
+assert(ENEMY_HP === 2, `balanced enemy hp stays 2, got ${ENEMY_HP}`);
+assert(ENEMY_PROFILES[1].hp === ENEMY_TALL_HP && ENEMY_TALL_HP < ENEMY_HP, 'the tall one is fragile');
+assert(ENEMY_PROFILES[2].hp === ENEMY_ROUND_HP && ENEMY_ROUND_HP === ENEMY_HP + 1, 'the round one has one extra hit');
+assert(
+  ENEMY_PROFILES[1].speed > ENEMY_PROFILES[0].speed && ENEMY_PROFILES[2].speed < ENEMY_PROFILES[0].speed,
+  'tall is faster and round is slower than the baseline',
+);
+assert(ENEMY_PROFILES[2].weight < ENEMY_PROFILES[1].weight && ENEMY_PROFILES[1].weight < ENEMY_PROFILES[0].weight, 'the tank is the rarest');
+assert(DASH_SLASH_DAMAGE >= ENEMY_HP && DASH_SLASH_DAMAGE >= ENEMY_TALL_HP, 'a dash still deletes the common kinds');
+assert(DASH_SLASH_DAMAGE < ENEMY_ROUND_HP, 'a dash still wounds the tank');
 assert(ENEMY_CAP >= 24, `cap allows dozens, got ${ENEMY_CAP}`);
 assert(ENEMY_LOOKS.length === ENEMY_KIND_COUNT && ENEMY_KIND_COUNT === 3, 'three enemy looks');
 assert(new Set(ENEMY_LOOKS.map((look) => look.body)).size === 3, 'body colors differ');
@@ -84,12 +98,10 @@ for (let step = 0; step < ENEMY_CAP; step += 1) {
   stepHunt(field, { x: 640, y: 360, facingX: 0, facingY: -1 }, 16, rng);
 }
 const alive = field.enemies.filter((enemy) => enemy.active);
-const kinds = new Set(alive.map((enemy) => enemy.kind));
 assert(alive.length === ENEMY_CAP, `screen holds the cap, got ${alive.length}`);
-assert(kinds.size === ENEMY_KIND_COUNT, `all three kinds appear, got ${[...kinds].join(',')}`);
 assert(
-  alive.every((enemy) => enemy.hp === ENEMY_HP),
-  'every kind spawns at the same hp',
+  alive.every((enemy) => enemy.hp === ENEMY_PROFILES[enemy.kind].hp),
+  'a spawn uses that kind\'s hp',
 );
 
 const slash = createHuntState(200, 200);
@@ -107,6 +119,54 @@ assert(
   slash.popups.some((popup) => popup.amount === DASH_SLASH_DAMAGE),
   'dash slash shows its own damage number',
 );
+
+const counts = [0, 0, 0];
+for (let sample = 0; sample < 700; sample += 1) {
+  counts[rollEnemyKind(() => sample / 700)] += 1;
+}
+assert(counts[0] > counts[1] && counts[1] > counts[2] && counts[2] > 0, `weights ${counts.join(',')}`);
+const expectedHp =
+  ENEMY_PROFILES.reduce((sum, profile) => sum + profile.hp * profile.weight, 0) /
+  ENEMY_PROFILES.reduce((sum, profile) => sum + profile.weight, 0);
+assert(expectedHp <= ENEMY_HP, `average hp stays at or under the old baseline, ${expectedHp}`);
+
+function chaseDistance(kind: number): number {
+  const state = createHuntState(640, 360);
+  state.spawnMs = 10_000;
+  state.attackCooldownMs = 10_000;
+  const enemy = state.enemies[0];
+  enemy.active = true;
+  enemy.kind = kind;
+  enemy.hp = 9;
+  enemy.x = 200;
+  enemy.y = 360;
+  stepHunt(state, { x: 640, y: 360, facingX: 1, facingY: 0 }, 1000, () => 0);
+  return enemy.x - 200;
+}
+
+const farFast = chaseDistance(1);
+const farWide = chaseDistance(0);
+const farRound = chaseDistance(2);
+assert(farFast > farWide && farWide > farRound, `chase distances fast ${farFast} wide ${farWide} round ${farRound}`);
+assert(Math.abs(farWide - enemyProfile(0).speed) < 2, `wide speed ${farWide}`);
+
+const brush = createHuntState(300, 300);
+brush.spawnMs = 10_000;
+brush.attackCooldownMs = 10_000;
+brush.enemies[0].active = true;
+brush.enemies[0].kind = 1;
+brush.enemies[0].hp = 4;
+brush.enemies[0].x = 300;
+brush.enemies[0].y = 300 + enemyProfile(1).contactRadius + 8;
+stepHunt(brush, { x: 300, y: 300, facingX: 0, facingY: -1 }, 16, () => 0);
+assert(brush.playerHp === 100, 'the narrow one does not touch from the old wider radius');
+brush.enemies[1].active = true;
+brush.enemies[1].kind = 2;
+brush.enemies[1].hp = 4;
+brush.enemies[1].x = 300 + enemyProfile(2).contactRadius - 4;
+brush.enemies[1].y = 300;
+stepHunt(brush, { x: 300, y: 300, facingX: 0, facingY: -1 }, 16, () => 0);
+assert(brush.playerHp < 100, 'the round shell reaches a little farther');
 
 if (failed > 0) {
   throw new Error(`${failed} mountain check(s) failed`);

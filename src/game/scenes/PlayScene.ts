@@ -33,7 +33,6 @@ import {
   DAMAGE_NUMBER_MS,
   DAMAGE_NUMBER_RISE,
   DASH_SLASH_DURATION_MS,
-  DASH_SLASH_RANGE,
   ENEMY_LOOKS,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -51,6 +50,7 @@ import {
 import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
 import { advanceRunClock, formatRunClock } from '../runClock.ts';
+import { slashStroke, whipStroke } from '../strokes.ts';
 import { RunEndOverlay, type RunOutcome } from '../runEndUi.ts';
 import { TouchControls } from '../touchControls.ts';
 
@@ -439,16 +439,8 @@ export class PlayScene extends Phaser.Scene {
         continue;
       }
       const alpha = Math.max(0.2, whip.lifeMs / WHIP_DURATION_MS);
-      const length = whip.reach;
-      const reachX = whip.x + Math.cos(whip.angle) * length;
-      const reachY = whip.y + Math.sin(whip.angle) * length;
-      const sweep = 0.7;
-      const sideX = whip.x + Math.cos(whip.angle + sweep) * (length * 0.82);
-      const sideY = whip.y + Math.sin(whip.angle + sweep) * (length * 0.82);
-      this.whipGfx.lineStyle(6, COLOR_MALACHITE, alpha);
-      this.whipGfx.lineBetween(whip.x, whip.y, reachX, reachY);
-      this.whipGfx.lineStyle(3, COLOR_MALACHITE_DEEP, alpha);
-      this.whipGfx.lineBetween(whip.x, whip.y, sideX, sideY);
+      this.whipGfx.lineStyle(5, COLOR_MALACHITE, alpha);
+      this.traceStroke(this.whipGfx, whipStroke(whip.x, whip.y, whip.angle, whip.reach));
     }
 
     this.drawSlash();
@@ -586,18 +578,16 @@ export class PlayScene extends Phaser.Scene {
       return;
     }
     const alpha = Math.max(0.25, slash.lifeMs / DASH_SLASH_DURATION_MS);
-    const dx = slash.x2 - slash.x1;
-    const dy = slash.y2 - slash.y1;
-    const length = Math.hypot(dx, dy);
-    const nx = length > 0.001 ? -dy / length : 1;
-    const ny = length > 0.001 ? dx / length : 0;
-    const midX = (slash.x1 + slash.x2) / 2;
-    const midY = (slash.y1 + slash.y2) / 2;
-    const half = DASH_SLASH_RANGE * 0.45;
     this.slashGfx.lineStyle(5, COLOR_TALISMAN_DASH, alpha);
-    this.slashGfx.lineBetween(slash.x1, slash.y1, slash.x2, slash.y2);
-    this.slashGfx.lineStyle(3, COLOR_TALISMAN_READY, alpha);
-    this.slashGfx.lineBetween(midX - nx * half, midY - ny * half, midX + nx * half, midY + ny * half);
+    this.traceStroke(this.slashGfx, slashStroke(slash.x1, slash.y1, slash.x2, slash.y2));
+  }
+
+  private traceStroke(gfx: Phaser.GameObjects.Graphics, points: { x: number; y: number }[]): void {
+    for (let index = 1; index < points.length; index += 1) {
+      const from = points[index - 1];
+      const to = points[index];
+      gfx.lineBetween(from.x, from.y, to.x, to.y);
+    }
   }
 
   private openOffer(): void {
