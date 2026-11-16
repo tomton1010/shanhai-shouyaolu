@@ -128,28 +128,25 @@ export const COMPANION_BODY_WIDTH = 34;
 export const COMPANION_FOLLOW_DISTANCE = 58;
 /** 追上玩家的速度，像素/秒。比走路快，避免被甩开。 */
 export const COMPANION_SPEED = 430;
-/** 自动攻击距离，像素。只打范围内最近的一只。 */
+/**
+ * 藤鞭的圆半径，像素。这一下里，圆心在狌狌、距离不超过这个半径的妖物都吃伤害。
+ * 最近的一只只决定要不要挥，以及狌狌朝哪边。长鞭加的是这个半径。
+ */
 export const COMPANION_ATTACK_RANGE = 220;
 /** 两次藤鞭之间的间隔，毫秒。 */
 export const COMPANION_ATTACK_INTERVAL_MS = 640;
 export const COMPANION_DAMAGE = 1;
 
 /**
- * 冲刺顺手砍一刀。伤害够收掉一只满血小怪。
- * 范围是到冲刺线段的距离，像素。同一次冲刺里每只妖物只吃一刀。
- * 刀光只沿这一段轻轻弯一下，弯出的距离不超过伤害范围。
+ * 冲刺斩是沿实际走过的路径的一条带子。
+ * 妖物中心到这段路径的距离不超过 DASH_SLASH_RANGE 就吃到这一刀，同一只在同一次冲刺里只吃一次。
+ * 刀光按这个半径把整段带子涂出来。
  */
 export const DASH_SLASH_DAMAGE = 2;
 export const DASH_SLASH_RANGE = 78;
-export const DASH_SLASH_BOW_PX = 18;
 /** 刀光停留时间，毫秒。盖过冲刺本身，松手后还能看见这一刀。 */
 export const DASH_SLASH_DURATION_MS = 180;
-/**
- * 藤鞭画出来的长度就是这一下用的攻击距离，不再用固定像素。
- * 长鞭叠上去以后，特效和能打到的距离一起变长。
- * 鞭身只弯 WHIP_BEND_PX，不再从同一起点另画一条斜线。
- */
-export const WHIP_BEND_PX = 16;
+/** 藤鞭圆盘停留时间，毫秒。圆的半径就是这一下的攻击距离。 */
 export const WHIP_DURATION_MS = 150;
 export const WHIP_CAP = 4;
 

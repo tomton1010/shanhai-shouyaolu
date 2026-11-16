@@ -33,6 +33,7 @@ import {
   DAMAGE_NUMBER_MS,
   DAMAGE_NUMBER_RISE,
   DASH_SLASH_DURATION_MS,
+  DASH_SLASH_RANGE,
   ENEMY_LOOKS,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -50,7 +51,6 @@ import {
 import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
 import { advanceRunClock, formatRunClock } from '../runClock.ts';
-import { slashStroke, whipStroke } from '../strokes.ts';
 import { RunEndOverlay, type RunOutcome } from '../runEndUi.ts';
 import { TouchControls } from '../touchControls.ts';
 
@@ -438,9 +438,11 @@ export class PlayScene extends Phaser.Scene {
       if (!whip.active) {
         continue;
       }
-      const alpha = Math.max(0.2, whip.lifeMs / WHIP_DURATION_MS);
-      this.whipGfx.lineStyle(5, COLOR_MALACHITE, alpha);
-      this.traceStroke(this.whipGfx, whipStroke(whip.x, whip.y, whip.angle, whip.reach));
+      const alpha = Math.max(0.35, whip.lifeMs / WHIP_DURATION_MS);
+      this.whipGfx.fillStyle(COLOR_MALACHITE, alpha * 0.22);
+      this.whipGfx.fillCircle(whip.x, whip.y, whip.reach);
+      this.whipGfx.lineStyle(3, COLOR_MALACHITE, alpha);
+      this.whipGfx.strokeCircle(whip.x, whip.y, whip.reach);
     }
 
     this.drawSlash();
@@ -577,16 +579,25 @@ export class PlayScene extends Phaser.Scene {
     if (!slash.active) {
       return;
     }
-    const alpha = Math.max(0.25, slash.lifeMs / DASH_SLASH_DURATION_MS);
-    this.slashGfx.lineStyle(5, COLOR_TALISMAN_DASH, alpha);
-    this.traceStroke(this.slashGfx, slashStroke(slash.x1, slash.y1, slash.x2, slash.y2));
-  }
-
-  private traceStroke(gfx: Phaser.GameObjects.Graphics, points: { x: number; y: number }[]): void {
-    for (let index = 1; index < points.length; index += 1) {
-      const from = points[index - 1];
-      const to = points[index];
-      gfx.lineBetween(from.x, from.y, to.x, to.y);
+    const alpha = Math.max(0.35, slash.lifeMs / DASH_SLASH_DURATION_MS) * 0.4;
+    this.slashGfx.fillStyle(COLOR_TALISMAN_DASH, alpha);
+    this.slashGfx.fillCircle(slash.x1, slash.y1, DASH_SLASH_RANGE);
+    this.slashGfx.fillCircle(slash.x2, slash.y2, DASH_SLASH_RANGE);
+    const dx = slash.x2 - slash.x1;
+    const dy = slash.y2 - slash.y1;
+    const length = Math.hypot(dx, dy);
+    if (length > 0.001) {
+      const nx = (-dy / length) * DASH_SLASH_RANGE;
+      const ny = (dx / length) * DASH_SLASH_RANGE;
+      this.slashGfx.fillPoints(
+        [
+          new Phaser.Geom.Point(slash.x1 + nx, slash.y1 + ny),
+          new Phaser.Geom.Point(slash.x2 + nx, slash.y2 + ny),
+          new Phaser.Geom.Point(slash.x2 - nx, slash.y2 - ny),
+          new Phaser.Geom.Point(slash.x1 - nx, slash.y1 - ny),
+        ],
+        true,
+      );
     }
   }
 
