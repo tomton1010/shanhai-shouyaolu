@@ -8,7 +8,7 @@ import {
   type CardId,
   type CardStacks,
 } from '../cards.ts';
-import { applyDashSlash, createHuntState, stepHunt, type EnemySlot, type HuntState } from '../combat.ts';
+import { applyDashSlash, createHuntState, stepHunt, whipSectorRadians, type EnemySlot, type HuntState } from '../combat.ts';
 import {
   COLOR_AZURITE_STAIN,
   COLOR_COMPANION_EAR,
@@ -47,6 +47,7 @@ import {
   RUN_DURATION_MS,
   TRAIL_FADE_MS,
   WHIP_DURATION_MS,
+  WHIP_SWEEP_MS,
 } from '../constants.ts';
 import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
@@ -438,11 +439,7 @@ export class PlayScene extends Phaser.Scene {
       if (!whip.active) {
         continue;
       }
-      const alpha = Math.max(0.35, whip.lifeMs / WHIP_DURATION_MS);
-      this.whipGfx.fillStyle(COLOR_MALACHITE, alpha * 0.22);
-      this.whipGfx.fillCircle(whip.x, whip.y, whip.reach);
-      this.whipGfx.lineStyle(3, COLOR_MALACHITE, alpha);
-      this.whipGfx.strokeCircle(whip.x, whip.y, whip.reach);
+      this.drawWhipSector(whip);
     }
 
     this.drawSlash();
@@ -571,6 +568,32 @@ export class PlayScene extends Phaser.Scene {
     this.clearFloaters();
     this.touch.setSuspended(false);
     this.syncHunt();
+  }
+
+  private drawWhipSector(whip: { x: number; y: number; angle: number; reach: number; lifeMs: number }): void {
+    const span = whipSectorRadians(whip.reach);
+    const elapsed = WHIP_DURATION_MS - whip.lifeMs;
+    const swept = Math.min(1, Math.max(0, elapsed / WHIP_SWEEP_MS));
+    if (swept <= 0.001) {
+      return;
+    }
+    const hold = Math.max(1, WHIP_DURATION_MS - WHIP_SWEEP_MS);
+    const fade = Math.min(1, whip.lifeMs / hold);
+    const alpha = Math.max(0.25, fade);
+    const start = whip.angle - span / 2;
+    const end = start + span * swept;
+    this.whipGfx.fillStyle(COLOR_MALACHITE, alpha * 0.32);
+    this.whipGfx.beginPath();
+    this.whipGfx.moveTo(whip.x, whip.y);
+    this.whipGfx.arc(whip.x, whip.y, whip.reach, start, end, false);
+    this.whipGfx.closePath();
+    this.whipGfx.fillPath();
+    this.whipGfx.lineStyle(3, COLOR_MALACHITE, alpha);
+    this.whipGfx.beginPath();
+    this.whipGfx.moveTo(whip.x, whip.y);
+    this.whipGfx.arc(whip.x, whip.y, whip.reach, start, end, false);
+    this.whipGfx.closePath();
+    this.whipGfx.strokePath();
   }
 
   private drawSlash(): void {

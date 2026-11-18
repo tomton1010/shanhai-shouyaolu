@@ -1,7 +1,10 @@
 import {
   COMPANION_ATTACK_INTERVAL_MS,
+  CARD_RANGE_BONUS,
   COMPANION_ATTACK_RANGE,
   COMPANION_DAMAGE,
+  WHIP_SECTOR_DEGREES,
+  WHIP_SECTOR_STACK_DEGREES,
   DASH_SLASH_DAMAGE,
   DASH_SLASH_DURATION_MS,
   DASH_SLASH_RANGE,
@@ -299,7 +302,18 @@ function followPlayer(state: HuntState, focus: HuntFocus, deltaMs: number): void
 function strike(state: HuntState, enemy: EnemySlot, damage: number, attackRange: number): void {
   state.companionAngle = Math.atan2(enemy.y - state.companionY, enemy.x - state.companionX);
   for (const victim of state.enemies) {
-    if (!victim.active || !inWhipArea(state.companionX, state.companionY, attackRange, victim.x, victim.y)) {
+    if (
+      !victim.active ||
+      !inWhipSector(
+        state.companionX,
+        state.companionY,
+        state.companionAngle,
+        attackRange,
+        whipSectorRadians(attackRange),
+        victim.x,
+        victim.y,
+      )
+    ) {
       continue;
     }
     damageEnemy(state, victim, damage);
@@ -429,9 +443,37 @@ function emptySlash(): SlashMark {
   return { active: false, x1: 0, y1: 0, x2: 0, y2: 0, lifeMs: 0 };
 }
 
-/** 藤鞭这一下的范围：以狌狌为圆心的圆，边界算打中。 */
-export function inWhipArea(originX: number, originY: number, range: number, enemyX: number, enemyY: number): boolean {
-  return Math.hypot(enemyX - originX, enemyY - originY) <= range;
+/** 这一下扇面的张角。长鞭每层加 WHIP_SECTOR_STACK_DEGREES。 */
+export function whipSectorRadians(attackRange: number): number {
+  const stacks = Math.max(0, (attackRange - COMPANION_ATTACK_RANGE) / CARD_RANGE_BONUS);
+  const degrees = WHIP_SECTOR_DEGREES + stacks * WHIP_SECTOR_STACK_DEGREES;
+  return (degrees * Math.PI) / 180;
+}
+
+/**
+ * 扇面判定。朝向 aimAngle，张角居中。距离不超过半径、偏角不超过半张角都算打中。
+ * 正好压在边上的也算。
+ */
+export function inWhipSector(
+  originX: number,
+  originY: number,
+  aimAngle: number,
+  range: number,
+  sectorRadians: number,
+  enemyX: number,
+  enemyY: number,
+): boolean {
+  const dx = enemyX - originX;
+  const dy = enemyY - originY;
+  const distance = Math.hypot(dx, dy);
+  if (distance > range + 1e-6) {
+    return false;
+  }
+  if (distance <= 0.001) {
+    return true;
+  }
+  const delta = Math.atan2(Math.sin(Math.atan2(dy, dx) - aimAngle), Math.cos(Math.atan2(dy, dx) - aimAngle));
+  return Math.abs(delta) <= sectorRadians / 2 + 1e-6;
 }
 
 /** 冲刺这一段的范围：到线段的距离不超过带子半径，端点外的半圆也算。 */
