@@ -9,6 +9,7 @@ import {
   CARD_MOVE_SPEED_BONUS,
   CARD_PICKUP_BONUS,
   CARD_RANGE_BONUS,
+  WHIP_SECTOR_STACK_DEGREES,
   CARD_STACK_CAP,
   DASH_COOLDOWN_MIN_MS,
   DASH_COOLDOWN_MS,
@@ -54,7 +55,7 @@ export function cardCatalog(): CardDef[] {
   return [
     { id: 'damage', name: '猛鞭', detail: `藤鞭伤害 +${CARD_DAMAGE_BONUS}` },
     { id: 'attackSpeed', name: '疾挥', detail: `攻击间隔 -${CARD_ATTACK_INTERVAL_DELTA_MS} 毫秒` },
-    { id: 'range', name: '长鞭', detail: `攻击范围 +${CARD_RANGE_BONUS}` },
+    { id: 'range', name: '长鞭', detail: `攻击范围 +${CARD_RANGE_BONUS}，扇面 +${WHIP_SECTOR_STACK_DEGREES} 度` },
     { id: 'moveSpeed', name: '快步', detail: `移动速度 +${CARD_MOVE_SPEED_BONUS}` },
     { id: 'pickup', name: '广纳', detail: `拾取范围 +${CARD_PICKUP_BONUS}` },
     { id: 'magnet', name: '迅吸', detail: `灵气吸入速度 +${CARD_MAGNET_SPEED_BONUS}` },

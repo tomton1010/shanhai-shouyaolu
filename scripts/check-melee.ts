@@ -8,14 +8,17 @@ import {
   DASH_SLASH_RANGE,
   ENEMY_HP,
   ORB_VALUE,
+  WHIP_SECTOR_DEGREES,
+  WHIP_SECTOR_STACK_DEGREES,
 } from '../src/game/constants.ts';
 import {
   applyDashSlash,
   createHuntState,
   defaultHuntMods,
   inDashBand,
-  inWhipArea,
+  inWhipSector,
   stepHunt,
+  whipSectorRadians,
   type EnemySlot,
 } from '../src/game/combat.ts';
 
@@ -28,8 +31,24 @@ function assert(condition: boolean, message: string): void {
   }
 }
 
-assert(inWhipArea(0, 0, 220, 220, 0), 'the rim of the whip circle is a hit');
-assert(!inWhipArea(0, 0, 220, 221, 0), 'just outside the whip circle is a miss');
+const baseSpan = whipSectorRadians(COMPANION_ATTACK_RANGE);
+const stackedSpan = whipSectorRadians(COMPANION_ATTACK_RANGE + CARD_STACK_CAP * CARD_RANGE_BONUS);
+assert(Math.abs((baseSpan * 180) / Math.PI - WHIP_SECTOR_DEGREES) < 0.001, 'base sector is 65 degrees');
+assert(
+  Math.abs((stackedSpan * 180) / Math.PI - (WHIP_SECTOR_DEGREES + CARD_STACK_CAP * WHIP_SECTOR_STACK_DEGREES)) < 0.001,
+  'five stacks open the sector to 105 degrees',
+);
+assert(inWhipSector(0, 0, 0, 220, baseSpan, 220, 0), 'the rim on the aim line is a hit');
+assert(!inWhipSector(0, 0, 0, 220, baseSpan, 221, 0), 'one pixel past the radius is a miss');
+const rimAngle = baseSpan / 2;
+assert(
+  inWhipSector(0, 0, 0, 220, baseSpan, Math.cos(rimAngle) * 220, Math.sin(rimAngle) * 220),
+  'the angle rim is a hit',
+);
+assert(
+  !inWhipSector(0, 0, 0, 220, baseSpan, Math.cos(rimAngle + 0.08) * 180, Math.sin(rimAngle + 0.08) * 180),
+  'just outside the angle is a miss',
+);
 assert(inDashBand(0, DASH_SLASH_RANGE, 0, 0, 100, 0), 'the rim of the dash band is a hit');
 assert(!inDashBand(0, DASH_SLASH_RANGE + 1, 0, 0, 100, 0), 'just outside the dash band is a miss');
 assert(inDashBand(-DASH_SLASH_RANGE, 0, 0, 0, 80, 0), 'the round cap behind the dash start still hits');
@@ -52,16 +71,27 @@ function quietHunt() {
   return state;
 }
 
+function fromCompanion(angle: number, distance: number): [number, number] {
+  return [100 + Math.cos(angle) * distance, 300 + Math.sin(angle) * distance];
+}
+
 const crowd = quietHunt();
-place(crowd.enemies[0], 100 + 40, 300, 4);
-place(crowd.enemies[1], 100, 300 + COMPANION_ATTACK_RANGE, 4);
-place(crowd.enemies[2], 100 - 80, 300, 4);
-place(crowd.enemies[3], 100 + COMPANION_ATTACK_RANGE + 24, 300, 4);
+const aimSpot = fromCompanion(0, 40);
+const sideSpot = fromCompanion(-0.3, 160);
+const edgeSpot = fromCompanion(baseSpan / 2, COMPANION_ATTACK_RANGE);
+const wideSpot = fromCompanion(baseSpan / 2 + 0.12, 150);
+const farSpot = fromCompanion(0, COMPANION_ATTACK_RANGE + 24);
+place(crowd.enemies[0], aimSpot[0], aimSpot[1], 4);
+place(crowd.enemies[1], sideSpot[0], sideSpot[1], 4);
+place(crowd.enemies[2], edgeSpot[0], edgeSpot[1], 4);
+place(crowd.enemies[3], wideSpot[0], wideSpot[1], 4);
+place(crowd.enemies[4], farSpot[0], farSpot[1], 4);
 stepHunt(crowd, focus, 16, () => 0);
-assert(crowd.enemies[0].hp === 4 - COMPANION_DAMAGE, `near enemy ${crowd.enemies[0].hp}`);
-assert(crowd.enemies[1].hp === 4 - COMPANION_DAMAGE, `rim enemy ${crowd.enemies[1].hp}`);
-assert(crowd.enemies[2].hp === 4 - COMPANION_DAMAGE, `behind the aim ${crowd.enemies[2].hp}`);
-assert(crowd.enemies[3].hp === 4, `outside enemy ${crowd.enemies[3].hp}`);
+assert(crowd.enemies[0].hp === 4 - COMPANION_DAMAGE, `aim enemy ${crowd.enemies[0].hp}`);
+assert(crowd.enemies[1].hp === 4 - COMPANION_DAMAGE, `inside the sector ${crowd.enemies[1].hp}`);
+assert(crowd.enemies[2].hp === 4 - COMPANION_DAMAGE, `angle rim ${crowd.enemies[2].hp}`);
+assert(crowd.enemies[3].hp === 4, `outside the angle ${crowd.enemies[3].hp}`);
+assert(crowd.enemies[4].hp === 4, `past the radius ${crowd.enemies[4].hp}`);
 assert(
   crowd.popups.filter((popup) => popup.amount === COMPANION_DAMAGE).length === 3,
   `one number per victim ${crowd.popups.length}`,
@@ -87,14 +117,22 @@ stepHunt(lethal, focus, 16, () => 0);
 assert(lethal.kills === 2, 'a dead enemy is not killed again');
 
 const stackedRange = COMPANION_ATTACK_RANGE + CARD_STACK_CAP * CARD_RANGE_BONUS;
+const opened = fromCompanion(0.7, 280);
 const stacked = quietHunt();
-place(stacked.enemies[0], 100 + stackedRange, 300, 5);
-place(stacked.enemies[1], 100 + COMPANION_ATTACK_RANGE + 30, 300, 5);
+place(stacked.enemies[0], 140, 300, 5);
+place(stacked.enemies[1], opened[0], opened[1], 5);
+place(stacked.enemies[2], 100 + stackedRange, 300, 5);
 stepHunt(stacked, focus, 16, () => 0, { ...defaultHuntMods(), attackRange: stackedRange });
-assert(stacked.enemies[0].hp === 5 - COMPANION_DAMAGE, 'five range stacks reach the new rim');
-assert(stacked.enemies[1].hp === 5 - COMPANION_DAMAGE, 'five range stacks also cover the old outside');
+assert(stacked.enemies[1].hp === 5 - COMPANION_DAMAGE, 'five stacks open the angle enough to include 40 degrees');
+assert(stacked.enemies[2].hp === 5 - COMPANION_DAMAGE, 'five stacks reach the new radius rim');
 const shown = stacked.whips.find((whip) => whip.active);
-assert(shown?.reach === stackedRange, `the disc radius is the upgraded range ${shown?.reach}`);
+assert(shown?.reach === stackedRange, `the sector radius is the upgraded range ${shown?.reach}`);
+const stillWide = fromCompanion(stackedSpan / 2 + 0.2, 200);
+const wideMiss = quietHunt();
+place(wideMiss.enemies[0], 140, 300, 5);
+place(wideMiss.enemies[1], stillWide[0], stillWide[1], 5);
+stepHunt(wideMiss, focus, 16, () => 0, { ...defaultHuntMods(), attackRange: stackedRange });
+assert(wideMiss.enemies[1].hp === 5, 'five stacks still leave a slash, not a circle');
 
 const baseMiss = quietHunt();
 place(baseMiss.enemies[0], 100 + stackedRange, 300, ENEMY_HP);

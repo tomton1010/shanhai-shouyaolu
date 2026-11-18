@@ -129,10 +129,12 @@ export const COMPANION_FOLLOW_DISTANCE = 58;
 /** 追上玩家的速度，像素/秒。比走路快，避免被甩开。 */
 export const COMPANION_SPEED = 430;
 /**
- * 藤鞭的圆半径，像素。这一下里，圆心在狌狌、距离不超过这个半径的妖物都吃伤害。
- * 最近的一只只决定要不要挥，以及狌狌朝哪边。长鞭加的是这个半径。
+ * 藤鞭扇面。圆心在狌狌，朝向最近的一只，张角居中。
+ * 半径和张角都随长鞭增加。最近的一只只决定挥不挥、朝哪边，圆心里这一侧的扇面里每只都吃伤害。
  */
 export const COMPANION_ATTACK_RANGE = 220;
+export const WHIP_SECTOR_DEGREES = 65;
+export const WHIP_SECTOR_STACK_DEGREES = 8;
 /** 两次藤鞭之间的间隔，毫秒。 */
 export const COMPANION_ATTACK_INTERVAL_MS = 640;
 export const COMPANION_DAMAGE = 1;
@@ -146,8 +148,9 @@ export const DASH_SLASH_DAMAGE = 2;
 export const DASH_SLASH_RANGE = 78;
 /** 刀光停留时间，毫秒。盖过冲刺本身，松手后还能看见这一刀。 */
 export const DASH_SLASH_DURATION_MS = 180;
-/** 藤鞭圆盘停留时间，毫秒。圆的半径就是这一下的攻击距离。 */
-export const WHIP_DURATION_MS = 150;
+/** 扇面从一侧挥到另一侧的时间，毫秒。挥满后短停再消失。攻击间隔仍是 640。 */
+export const WHIP_SWEEP_MS = 160;
+export const WHIP_DURATION_MS = 240;
 export const WHIP_CAP = 4;
 
 /**
