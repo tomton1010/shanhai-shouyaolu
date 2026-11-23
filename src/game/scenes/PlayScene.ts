@@ -13,25 +13,22 @@ import { actorFlipX, torsoLocalOffset } from '../actorFacing.ts';
 import {
   ACTOR_FACING_DEADZONE,
   ACTOR_SPRITE_DISPLAY_SIZE,
-  COLOR_AZURITE_STAIN,
   COLOR_HINT,
-  COLOR_INK,
   COLOR_MALACHITE,
-  COLOR_MALACHITE_DEEP,
-  COLOR_OCHRE_STAIN,
   COLOR_PLAYER_OUTLINE,
   COLOR_TALISMAN_COOLDOWN,
   COLOR_TALISMAN_DASH,
   COLOR_TALISMAN_READY,
   COMPANION_LOOK,
-  COLOR_TILE_A,
-  COLOR_TILE_B,
+  DASH_SLASH_LOOK,
+  GROUND_LOOK,
+  ORB_DISPLAY_SIZE,
+  ORB_LOOK,
   DAMAGE_NUMBER_CAP,
   DAMAGE_NUMBER_COLOR,
   DAMAGE_NUMBER_MS,
   DAMAGE_NUMBER_RISE,
   DASH_SLASH_DURATION_MS,
-  DASH_SLASH_RANGE,
   ENEMY_LOOKS,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -49,8 +46,10 @@ import {
   TALISMAN_OFFSET_Y,
   TALISMAN_WIDTH,
   TRAIL_FADE_MS,
+  WHIP_CAP,
   WHIP_DURATION_MS,
   WHIP_SWEEP_MS,
+  WHIP_VINE_LOOK,
 } from '../constants.ts';
 import { LevelUpOverlay } from '../levelUpUi.ts';
 import { createMotionState, stepMotion, type MotionState } from '../motion.ts';
@@ -71,9 +70,10 @@ export class PlayScene extends Phaser.Scene {
   private enemyBodies: Phaser.GameObjects.Graphics[] = [];
   private enemyKindDrawn: number[] = [];
   private floaters: { text: Phaser.GameObjects.Text; lifeMs: number; x: number; y: number }[] = [];
-  private orbViews: Phaser.GameObjects.Arc[] = [];
-  private whipGfx!: Phaser.GameObjects.Graphics;
-  private slashGfx!: Phaser.GameObjects.Graphics;
+  private orbViews: Phaser.GameObjects.Sprite[] = [];
+  private whipSprites: Phaser.GameObjects.Sprite[] = [];
+  private whipMasks: Phaser.GameObjects.Graphics[] = [];
+  private slashSprite!: Phaser.GameObjects.Sprite;
   private slashHit = new Set<EnemySlot>();
   private xpText!: Phaser.GameObjects.Text;
   private xpBar!: Phaser.GameObjects.Graphics;
@@ -114,6 +114,10 @@ export class PlayScene extends Phaser.Scene {
     const base = import.meta.env.BASE_URL;
     this.load.image(PLAYER_LOOK.texture, `${base}${PLAYER_LOOK.file}`);
     this.load.image(COMPANION_LOOK.texture, `${base}${COMPANION_LOOK.file}`);
+    this.load.image(GROUND_LOOK.texture, `${base}${GROUND_LOOK.file}`);
+    this.load.image(WHIP_VINE_LOOK.texture, `${base}${WHIP_VINE_LOOK.file}`);
+    this.load.image(DASH_SLASH_LOOK.texture, `${base}${DASH_SLASH_LOOK.file}`);
+    this.load.image(ORB_LOOK.texture, `${base}${ORB_LOOK.file}`);
   }
 
   create(): void {
@@ -124,8 +128,9 @@ export class PlayScene extends Phaser.Scene {
     this.companion = this.createCompanion(this.hunt.companionX, this.hunt.companionY);
     this.createEnemyViews();
     this.createOrbViews();
-    this.whipGfx = this.add.graphics().setDepth(10);
-    this.slashGfx = this.add.graphics().setDepth(11);
+    this.createWhipViews();
+    this.textures.get(DASH_SLASH_LOOK.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.slashSprite = this.add.sprite(0, 0, DASH_SLASH_LOOK.texture).setDepth(11).setVisible(false);
 
     this.add
       .text(36, 28, HINT_TEXT, {
@@ -287,33 +292,8 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private drawGround(): void {
-    const ground = this.add.graphics();
-    ground.fillStyle(COLOR_INK, 1);
-    ground.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-    const tile = 80;
-    for (let y = 0; y < GAME_HEIGHT; y += tile) {
-      for (let x = 0; x < GAME_WIDTH; x += tile) {
-        const checker = (x / tile + y / tile) % 2 === 0;
-        ground.fillStyle(checker ? COLOR_TILE_A : COLOR_TILE_B, 1);
-        ground.fillRect(x, y, tile, tile);
-      }
-    }
-
-    ground.fillStyle(0x171614, 1);
-    ground.fillRect(0, 128, 420, 46);
-    ground.fillRect(860, 150, 420, 52);
-    ground.fillRect(80, 520, 260, 34);
-    ground.fillStyle(COLOR_MALACHITE_DEEP, 1);
-    ground.fillEllipse(150, 250, 150, 90);
-    ground.fillEllipse(1120, 220, 130, 80);
-    ground.fillEllipse(1040, 560, 170, 100);
-    ground.fillEllipse(220, 600, 120, 70);
-    ground.fillStyle(COLOR_AZURITE_STAIN, 1);
-    ground.fillEllipse(700, 470, 420, 46);
-    ground.fillStyle(COLOR_OCHRE_STAIN, 1);
-    ground.fillEllipse(520, 200, 160, 70);
-    ground.setDepth(0);
+    this.textures.get(GROUND_LOOK.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.add.image(0, 0, GROUND_LOOK.texture).setOrigin(0, 0).setDisplaySize(GAME_WIDTH, GAME_HEIGHT).setDepth(0);
 
     this.add
       .text(GAME_WIDTH / 2, GAME_HEIGHT - 18, MAP_NAME, {
@@ -423,12 +403,27 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private createOrbViews(): void {
+    this.textures.get(ORB_LOOK.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
     for (let index = 0; index < this.hunt.orbs.length; index += 1) {
-      const orb = this.add.circle(0, 0, 7, COLOR_MALACHITE, 0.95);
-      orb.setStrokeStyle(2, COLOR_MALACHITE_DEEP, 1);
+      const orb = this.add.sprite(0, 0, ORB_LOOK.texture);
+      orb.setDisplaySize(ORB_DISPLAY_SIZE, ORB_DISPLAY_SIZE);
       orb.setDepth(6);
       orb.setVisible(false);
       this.orbViews.push(orb);
+    }
+  }
+
+  private createWhipViews(): void {
+    this.textures.get(WHIP_VINE_LOOK.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    for (let index = 0; index < WHIP_CAP; index += 1) {
+      const maskGfx = this.make.graphics({}, false);
+      const sprite = this.add.sprite(0, 0, WHIP_VINE_LOOK.texture);
+      sprite.setOrigin(WHIP_VINE_LOOK.originX, WHIP_VINE_LOOK.originY);
+      sprite.setMask(maskGfx.createGeometryMask());
+      sprite.setDepth(10);
+      sprite.setVisible(false);
+      this.whipMasks.push(maskGfx);
+      this.whipSprites.push(sprite);
     }
   }
 
@@ -436,8 +431,8 @@ export class PlayScene extends Phaser.Scene {
     this.companion.setPosition(Math.round(this.hunt.companionX), Math.round(this.hunt.companionY));
     this.companion.setRotation(0);
     this.faceActor(this.companionSprite, COMPANION_LOOK, Math.cos(this.hunt.companionAngle));
-    this.player.setDepth(6 + this.motion.y / GAME_HEIGHT);
-    this.companion.setDepth(6 + this.hunt.companionY / GAME_HEIGHT);
+    this.player.setDepth(7 + this.motion.y / GAME_HEIGHT);
+    this.companion.setDepth(7 + this.hunt.companionY / GAME_HEIGHT);
     const playerFlashing = this.hunt.playerFlashMs > 0 && Math.floor(this.hunt.timeMs / 50) % 2 === 0;
     this.player.setAlpha(playerFlashing ? 0.35 : 1);
 
@@ -466,14 +461,7 @@ export class PlayScene extends Phaser.Scene {
       }
     }
 
-    this.whipGfx.clear();
-    for (const whip of this.hunt.whips) {
-      if (!whip.active) {
-        continue;
-      }
-      this.drawWhipSector(whip);
-    }
-
+    this.syncWhips();
     this.drawSlash();
     this.drainPopups();
 
@@ -605,58 +593,62 @@ export class PlayScene extends Phaser.Scene {
     this.syncHunt();
   }
 
-  private drawWhipSector(whip: { x: number; y: number; angle: number; reach: number; lifeMs: number }): void {
-    const span = whipSectorRadians(whip.reach);
-    const elapsed = WHIP_DURATION_MS - whip.lifeMs;
-    const swept = Math.min(1, Math.max(0, elapsed / WHIP_SWEEP_MS));
-    if (swept <= 0.001) {
-      return;
+  /** 藤鞭贴图跟着原来的扇面扫开。判定不看贴图。 */
+  private syncWhips(): void {
+    for (let index = 0; index < this.hunt.whips.length; index += 1) {
+      const whip = this.hunt.whips[index];
+      const sprite = this.whipSprites[index];
+      const maskGfx = this.whipMasks[index];
+      if (!whip.active) {
+        sprite.setVisible(false);
+        continue;
+      }
+      const span = whipSectorRadians(whip.reach);
+      const elapsed = WHIP_DURATION_MS - whip.lifeMs;
+      const swept = Math.min(1, Math.max(0, elapsed / WHIP_SWEEP_MS));
+      if (swept <= 0.001) {
+        sprite.setVisible(false);
+        continue;
+      }
+      const hold = Math.max(1, WHIP_DURATION_MS - WHIP_SWEEP_MS);
+      const fade = Math.min(1, whip.lifeMs / hold);
+      const scale = whip.reach / WHIP_VINE_LOOK.tipRadius;
+      sprite.setVisible(true);
+      sprite.setPosition(whip.x, whip.y);
+      sprite.setRotation(whip.angle - WHIP_VINE_LOOK.tipAngle);
+      sprite.setDisplaySize(WHIP_VINE_LOOK.frameWidth * scale, WHIP_VINE_LOOK.frameHeight * scale);
+      sprite.setAlpha(Math.max(0.25, fade));
+      const start = whip.angle - span / 2;
+      const end = start + span * swept;
+      maskGfx.clear();
+      maskGfx.fillStyle(0xffffff, 1);
+      maskGfx.beginPath();
+      maskGfx.moveTo(whip.x, whip.y);
+      maskGfx.arc(whip.x, whip.y, whip.reach + 6, start, end, false);
+      maskGfx.closePath();
+      maskGfx.fillPath();
     }
-    const hold = Math.max(1, WHIP_DURATION_MS - WHIP_SWEEP_MS);
-    const fade = Math.min(1, whip.lifeMs / hold);
-    const alpha = Math.max(0.25, fade);
-    const start = whip.angle - span / 2;
-    const end = start + span * swept;
-    this.whipGfx.fillStyle(COLOR_MALACHITE, alpha * 0.32);
-    this.whipGfx.beginPath();
-    this.whipGfx.moveTo(whip.x, whip.y);
-    this.whipGfx.arc(whip.x, whip.y, whip.reach, start, end, false);
-    this.whipGfx.closePath();
-    this.whipGfx.fillPath();
-    this.whipGfx.lineStyle(3, COLOR_MALACHITE, alpha);
-    this.whipGfx.beginPath();
-    this.whipGfx.moveTo(whip.x, whip.y);
-    this.whipGfx.arc(whip.x, whip.y, whip.reach, start, end, false);
-    this.whipGfx.closePath();
-    this.whipGfx.strokePath();
   }
 
   private drawSlash(): void {
     const slash = this.hunt.slash;
-    this.slashGfx.clear();
     if (!slash.active) {
+      this.slashSprite.setVisible(false);
       return;
     }
-    const alpha = Math.max(0.35, slash.lifeMs / DASH_SLASH_DURATION_MS) * 0.4;
-    this.slashGfx.fillStyle(COLOR_TALISMAN_DASH, alpha);
-    this.slashGfx.fillCircle(slash.x1, slash.y1, DASH_SLASH_RANGE);
-    this.slashGfx.fillCircle(slash.x2, slash.y2, DASH_SLASH_RANGE);
     const dx = slash.x2 - slash.x1;
     const dy = slash.y2 - slash.y1;
     const length = Math.hypot(dx, dy);
-    if (length > 0.001) {
-      const nx = (-dy / length) * DASH_SLASH_RANGE;
-      const ny = (dx / length) * DASH_SLASH_RANGE;
-      this.slashGfx.fillPoints(
-        [
-          new Phaser.Geom.Point(slash.x1 + nx, slash.y1 + ny),
-          new Phaser.Geom.Point(slash.x2 + nx, slash.y2 + ny),
-          new Phaser.Geom.Point(slash.x2 - nx, slash.y2 - ny),
-          new Phaser.Geom.Point(slash.x1 - nx, slash.y1 - ny),
-        ],
-        true,
-      );
+    if (length <= 0.001) {
+      this.slashSprite.setVisible(false);
+      return;
     }
+    const alpha = Math.max(0.35, slash.lifeMs / DASH_SLASH_DURATION_MS);
+    this.slashSprite.setVisible(true);
+    this.slashSprite.setPosition((slash.x1 + slash.x2) / 2, (slash.y1 + slash.y2) / 2);
+    this.slashSprite.setRotation(Math.atan2(dy, dx));
+    this.slashSprite.setDisplaySize(length, length * (DASH_SLASH_LOOK.frameHeight / DASH_SLASH_LOOK.frameWidth));
+    this.slashSprite.setAlpha(alpha);
   }
 
   private openOffer(): void {

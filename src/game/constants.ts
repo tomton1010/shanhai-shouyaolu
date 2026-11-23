@@ -54,6 +54,44 @@ export const TALISMAN_OFFSET_Y = -8;
 export const TALISMAN_WIDTH = 6;
 export const TALISMAN_HEIGHT = 10;
 
+/** 招摇之山地面，和画布一样大。中间石板比原图略提亮，边角没有抬。 */
+export const GROUND_LOOK = {
+  texture: 'ground-zhaoyao',
+  file: 'art/ground/zhaoyao.png',
+} as const;
+
+/**
+ * 藤鞭贴图只负责画面。扇面张角、半径、伤害和间隔仍走原来的常量。
+ * 藤根锚在狌狌身上，主藤转到扇面中线，再缩到这一下的半径。
+ */
+export const WHIP_VINE_LOOK = {
+  texture: 'fx-whip-vine',
+  file: 'art/fx/whip_vine.png',
+  frameWidth: 935,
+  frameHeight: 886,
+  originX: 158 / 935,
+  originY: 762 / 886,
+  /** 主藤中段相对藤根的方向，屏幕坐标，弧度。 */
+  tipAngle: (-57.4 * Math.PI) / 180,
+  /** 藤根到藤身外沿，像素。显示时缩放到扇面半径。 */
+  tipRadius: 840,
+} as const;
+
+/** 冲刺斩刀光。沿实际走过的路径旋转、拉长。判定半径仍是 DASH_SLASH_RANGE。 */
+export const DASH_SLASH_LOOK = {
+  texture: 'fx-dash-slash',
+  file: 'art/fx/dash_slash.png',
+  frameWidth: 1173,
+  frameHeight: 277,
+} as const;
+
+/** 灵气画面直径。原来的圆半径是 7，直径 14。拾取半径不看这个数。 */
+export const ORB_LOOK = {
+  texture: 'fx-lingqi',
+  file: 'art/fx/lingqi_orb.png',
+} as const;
+export const ORB_DISPLAY_SIZE = 14;
+
 /** 走路速度，像素/秒。斜向会先归一化，因此不会更快。 */
 export const PLAYER_MOVE_SPEED = 320;
 
