@@ -39,7 +39,7 @@ export interface EnemySlot {
   y: number;
   hp: number;
   hitFlashMs: number;
-  /** 0 宽兽、1 细高、2 圆甲。三种外形，数值相同。 */
+  /** 0 窫窳、1 九尾狐、2 帝江。数值仍是原来的三种小怪。 */
   kind: number;
 }
 
@@ -150,7 +150,7 @@ export function enemyProfile(kind: number): (typeof ENEMY_PROFILES)[number] {
   return ENEMY_PROFILES[kind] ?? ENEMY_PROFILES[0];
 }
 
-/** 按权重抽一种。rng 为 0 时落在最常见的宽兽上。 */
+/** 按权重抽一种。rng 为 0 时落在最常见的窫窳上。 */
 export function rollEnemyKind(rng: () => number): number {
   const total = ENEMY_PROFILES.reduce((sum, profile) => sum + profile.weight, 0);
   let roll = rng() * total;
