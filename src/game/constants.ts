@@ -3,14 +3,56 @@ export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
 
 /**
- * 占位道士身长（像素）。正式精灵未就绪，先用这个尺寸的色块。
- * 身高约 64，避免大头 Q 版。
+ * 道士身高（像素）。待机图按这个身高显示，见 ACTOR_SPRITE_DISPLAY_SIZE。
+ * 画面边缘仍用 PLAYER_HALF_EXTENT，不跟着袍摆外框变。
  */
 export const PLAYER_BODY_HEIGHT = 64;
 export const PLAYER_BODY_WIDTH = 36;
 
 /** 描边外接圆半径。斜向时 40×68 的角不会伸出画布。 */
 export const PLAYER_HALF_EXTENT = 40;
+
+/**
+ * 道士、狌狌待机图在画面上的边长，像素。源图是 256×256 透明 PNG，
+ * 引擎里最近邻缩放到这个尺寸，不走线性过滤。
+ * 人物几乎铺满贴图，70 时身高约 64，和原来的色块身长一致。
+ * 接触、拾取仍用原来的坐标，不按袍摆、毛发或耳朵的外框算。
+ */
+export const ACTOR_SPRITE_DISPLAY_SIZE = 70;
+
+/**
+ * 朝向的水平分量小于这个值时不翻面。
+ * 大约正上、正下 20 度以内，避免贴着上下走时来回闪。
+ */
+export const ACTOR_FACING_DEADZONE = 0.35;
+
+/**
+ * 原画都是略俯视的 3/4，面朝右下。facing 为 1：往右走不翻转，往左走水平翻转。
+ * originX/Y 是躯干在贴图上的位置（0–1）。画面锚在这里，不锚在袍摆、耳朵或手脚上。
+ */
+export const PLAYER_LOOK = {
+  name: '道士',
+  texture: 'actor-taoist',
+  file: 'art/player/taoist_idle.png',
+  facing: 1,
+  originX: 0.48,
+  originY: 0.55,
+} as const;
+
+export const COMPANION_LOOK = {
+  name: '狌狌',
+  texture: 'actor-xingxing',
+  file: 'art/companion/xingxing_idle.png',
+  facing: 1,
+  originX: 0.44,
+  originY: 0.45,
+} as const;
+
+/** 胸口朱砂符，相对躯干。翻面时水平镜像，仍贴在身前。只表示冲刺冷却，不改冲刺。 */
+export const TALISMAN_OFFSET_X = 4;
+export const TALISMAN_OFFSET_Y = -8;
+export const TALISMAN_WIDTH = 6;
+export const TALISMAN_HEIGHT = 10;
 
 /** 走路速度，像素/秒。斜向会先归一化，因此不会更快。 */
 export const PLAYER_MOVE_SPEED = 320;
@@ -121,7 +163,7 @@ export const ENEMY_LOOKS = [
   { body: COLOR_ENEMY_ROUND, mark: COLOR_ENEMY_ROUND_MARK },
 ] as const;
 
-/** 狌狌身长，和玩家同级，不要做成大头。 */
+/** 狌狌身长，和玩家同级。待机图按这个身高显示，不要做成大头。 */
 export const COMPANION_BODY_HEIGHT = 64;
 export const COMPANION_BODY_WIDTH = 34;
 /** 跟在玩家朝向的反方向，像素。 */

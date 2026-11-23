@@ -115,6 +115,8 @@
 
 **不要做：** 精英、守护者、山神坛。
 
+道士和狌狌已换上定稿待机图，走位、冲刺、藤鞭、伤害和拾取没改。游戏读取 `public/art/player/` 和 `public/art/companion/` 里的 256 透明图，高清源图在 `art/player/source/` 和 `art/companion/source/`。这一条仍待人验收。
+
 **任务说明：** 见 [prompts/T1.5.md](./prompts/T1.5.md)
 
 藤鞭是朝最近一只挥出的扇面，扇里的妖物都吃到；冲刺仍是路径上的带子。每下每只一次。这一条仍待人验收。

@@ -9,23 +9,21 @@ import {
   type CardStacks,
 } from '../cards.ts';
 import { applyDashSlash, createHuntState, stepHunt, whipSectorRadians, type EnemySlot, type HuntState } from '../combat.ts';
+import { actorFlipX, torsoLocalOffset } from '../actorFacing.ts';
 import {
+  ACTOR_FACING_DEADZONE,
+  ACTOR_SPRITE_DISPLAY_SIZE,
   COLOR_AZURITE_STAIN,
-  COLOR_COMPANION_EAR,
-  COLOR_COMPANION_FUR,
   COLOR_HINT,
   COLOR_INK,
   COLOR_MALACHITE,
   COLOR_MALACHITE_DEEP,
   COLOR_OCHRE_STAIN,
-  COLOR_PLAYER_FACE,
-  COLOR_PLAYER_HEM,
-  COLOR_PLAYER_HOOD,
   COLOR_PLAYER_OUTLINE,
-  COLOR_PLAYER_ROBE,
   COLOR_TALISMAN_COOLDOWN,
   COLOR_TALISMAN_DASH,
   COLOR_TALISMAN_READY,
+  COMPANION_LOOK,
   COLOR_TILE_A,
   COLOR_TILE_B,
   DAMAGE_NUMBER_CAP,
@@ -42,9 +40,14 @@ import {
   MAP_LABEL_COLOR,
   MAP_NAME,
   MAX_FRAME_MS,
+  PLAYER_LOOK,
   PLAYER_MAX_HP,
   REROLLS_PER_RUN,
   RUN_DURATION_MS,
+  TALISMAN_HEIGHT,
+  TALISMAN_OFFSET_X,
+  TALISMAN_OFFSET_Y,
+  TALISMAN_WIDTH,
   TRAIL_FADE_MS,
   WHIP_DURATION_MS,
   WHIP_SWEEP_MS,
@@ -86,6 +89,8 @@ export class PlayScene extends Phaser.Scene {
   private runElapsedMs = 0;
   private outcome: RunOutcome | null = null;
   private offer: CardId[] | null = null;
+  private playerSprite!: Phaser.GameObjects.Sprite;
+  private companionSprite!: Phaser.GameObjects.Sprite;
   private talisman!: Phaser.GameObjects.Rectangle;
   private up!: Phaser.Input.Keyboard.Key;
   private down!: Phaser.Input.Keyboard.Key;
@@ -103,6 +108,12 @@ export class PlayScene extends Phaser.Scene {
 
   constructor() {
     super('play');
+  }
+
+  preload(): void {
+    const base = import.meta.env.BASE_URL;
+    this.load.image(PLAYER_LOOK.texture, `${base}${PLAYER_LOOK.file}`);
+    this.load.image(COMPANION_LOOK.texture, `${base}${COMPANION_LOOK.file}`);
   }
 
   create(): void {
@@ -230,15 +241,15 @@ export class PlayScene extends Phaser.Scene {
       this.slashHit.clear();
     }
     this.motion = step.state;
-    this.player.setPosition(this.motion.x, this.motion.y);
+    this.player.setPosition(Math.round(this.motion.x), Math.round(this.motion.y));
+    this.player.setRotation(0);
 
     const aimX = step.bursting ? this.motion.dashDirX : this.motion.facingX;
-    const aimY = step.bursting ? this.motion.dashDirY : this.motion.facingY;
-    this.player.setRotation(Math.atan2(aimY, aimX) + Math.PI / 2);
+    this.faceActor(this.playerSprite, PLAYER_LOOK, aimX, this.talisman);
 
     if (step.bursting) {
       this.talisman.setFillStyle(COLOR_TALISMAN_DASH);
-      this.leaveTrail(fromX, fromY, this.player.rotation);
+      this.leaveTrail(fromX, fromY);
     } else if (step.dashReady) {
       this.talisman.setFillStyle(COLOR_TALISMAN_READY);
     } else {
@@ -316,41 +327,59 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private createPlayer(x: number, y: number): Phaser.GameObjects.Container {
-    const body = this.add.graphics();
-    body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
-    body.fillRect(-20, -34, 40, 68);
-    body.fillStyle(COLOR_PLAYER_ROBE, 1);
-    body.fillRect(-18, -32, 36, 64);
-    body.fillStyle(COLOR_PLAYER_HEM, 1);
-    body.fillRect(-18, 18, 36, 14);
-    body.fillStyle(COLOR_PLAYER_HOOD, 1);
-    body.fillRect(-15, -32, 30, 26);
-    body.fillStyle(COLOR_PLAYER_FACE, 1);
-    body.fillRect(-5, -12, 10, 4);
-
-    this.talisman = this.add.rectangle(0, 8, 6, 18, COLOR_TALISMAN_READY);
-
-    const player = this.add.container(x, y, [body, this.talisman]);
+    this.textures.get(PLAYER_LOOK.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    const sprite = this.add.sprite(0, 0, PLAYER_LOOK.texture);
+    this.playerSprite = sprite;
+    this.placeActorSprite(sprite, PLAYER_LOOK, false);
+    this.talisman = this.add.rectangle(
+      TALISMAN_OFFSET_X,
+      TALISMAN_OFFSET_Y,
+      TALISMAN_WIDTH,
+      TALISMAN_HEIGHT,
+      COLOR_TALISMAN_READY,
+    );
+    const player = this.add.container(x, y, [sprite, this.talisman]);
     player.setDepth(8);
     return player;
   }
 
   private createCompanion(x: number, y: number): Phaser.GameObjects.Container {
-    const body = this.add.graphics();
-    body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
-    body.fillRect(-19, -34, 38, 68);
-    body.fillStyle(COLOR_COMPANION_FUR, 1);
-    body.fillRect(-17, -32, 34, 64);
-    body.fillStyle(0x161310, 1);
-    body.fillRect(-12, -32, 24, 16);
-    body.fillStyle(COLOR_COMPANION_EAR, 1);
-    body.fillRect(-20, -30, 8, 6);
-    body.fillRect(12, -30, 8, 6);
-    body.fillStyle(COLOR_MALACHITE, 1);
-    body.fillRect(-3, -8, 6, 26);
-    const companion = this.add.container(x, y, [body]);
+    this.textures.get(COMPANION_LOOK.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    const sprite = this.add.sprite(0, 0, COMPANION_LOOK.texture);
+    this.companionSprite = sprite;
+    this.placeActorSprite(sprite, COMPANION_LOOK, false);
+    const companion = this.add.container(x, y, [sprite]);
     companion.setDepth(7);
     return companion;
+  }
+
+  /** 贴图中心为原点，再把躯干挪到容器原点。翻转时镜像这个偏移，躯干不跳。 */
+  private placeActorSprite(
+    sprite: Phaser.GameObjects.Sprite,
+    look: { originX: number; originY: number },
+    flipX: boolean,
+  ): void {
+    sprite.setOrigin(0.5, 0.5);
+    sprite.setDisplaySize(ACTOR_SPRITE_DISPLAY_SIZE, ACTOR_SPRITE_DISPLAY_SIZE);
+    sprite.setFlipX(flipX);
+    const offset = torsoLocalOffset(look.originX, look.originY, ACTOR_SPRITE_DISPLAY_SIZE, flipX);
+    sprite.setPosition(offset.x, offset.y);
+  }
+
+  private faceActor(
+    sprite: Phaser.GameObjects.Sprite,
+    look: { originX: number; originY: number; facing: number },
+    dirX: number,
+    accent?: Phaser.GameObjects.Rectangle,
+  ): void {
+    const flip = actorFlipX(dirX, look.facing, ACTOR_FACING_DEADZONE, sprite.flipX);
+    if (flip === sprite.flipX) {
+      return;
+    }
+    this.placeActorSprite(sprite, look, flip);
+    if (accent) {
+      accent.setX(flip ? -TALISMAN_OFFSET_X : TALISMAN_OFFSET_X);
+    }
   }
 
   private createEnemyViews(): void {
@@ -404,8 +433,11 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private syncHunt(): void {
-    this.companion.setPosition(this.hunt.companionX, this.hunt.companionY);
-    this.companion.setRotation(this.hunt.companionAngle + Math.PI / 2);
+    this.companion.setPosition(Math.round(this.hunt.companionX), Math.round(this.hunt.companionY));
+    this.companion.setRotation(0);
+    this.faceActor(this.companionSprite, COMPANION_LOOK, Math.cos(this.hunt.companionAngle));
+    this.player.setDepth(6 + this.motion.y / GAME_HEIGHT);
+    this.companion.setDepth(6 + this.hunt.companionY / GAME_HEIGHT);
     const playerFlashing = this.hunt.playerFlashMs > 0 && Math.floor(this.hunt.timeMs / 50) % 2 === 0;
     this.player.setAlpha(playerFlashing ? 0.35 : 1);
 
@@ -562,8 +594,11 @@ export class PlayScene extends Phaser.Scene {
     this.hunt = createHuntState(x, y);
     this.player.setPosition(x, y);
     this.player.setAlpha(1);
-    this.player.setRotation(Math.atan2(this.motion.facingY, this.motion.facingX) + Math.PI / 2);
+    this.player.setRotation(0);
+    this.placeActorSprite(this.playerSprite, PLAYER_LOOK, false);
+    this.talisman.setPosition(TALISMAN_OFFSET_X, TALISMAN_OFFSET_Y);
     this.talisman.setFillStyle(COLOR_TALISMAN_READY);
+    this.placeActorSprite(this.companionSprite, COMPANION_LOOK, false);
     this.slashHit.clear();
     this.clearFloaters();
     this.touch.setSuspended(false);
@@ -683,10 +718,15 @@ export class PlayScene extends Phaser.Scene {
     return pressed;
   }
 
-  private leaveTrail(x: number, y: number, rotation: number): void {
-    const trail = this.add.rectangle(x, y, 28, 52, COLOR_TALISMAN_READY, 0.28);
-    trail.setRotation(rotation);
-    trail.setDepth(4);
+  private leaveTrail(x: number, y: number): void {
+    const flip = this.playerSprite.flipX;
+    const offset = torsoLocalOffset(PLAYER_LOOK.originX, PLAYER_LOOK.originY, ACTOR_SPRITE_DISPLAY_SIZE, flip);
+    const trail = this.add.sprite(Math.round(x) + offset.x, Math.round(y) + offset.y, PLAYER_LOOK.texture);
+    trail.setOrigin(0.5, 0.5);
+    trail.setDisplaySize(ACTOR_SPRITE_DISPLAY_SIZE, ACTOR_SPRITE_DISPLAY_SIZE);
+    trail.setFlipX(flip);
+    trail.setAlpha(0.28);
+    trail.setDepth(5);
     this.tweens.add({
       targets: trail,
       alpha: 0,
