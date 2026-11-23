@@ -47,8 +47,11 @@ assert(DASH_SLASH_DAMAGE >= ENEMY_HP && DASH_SLASH_DAMAGE >= ENEMY_TALL_HP, 'a d
 assert(DASH_SLASH_DAMAGE < ENEMY_ROUND_HP, 'a dash still wounds the tank');
 assert(ENEMY_CAP >= 24, `cap allows dozens, got ${ENEMY_CAP}`);
 assert(ENEMY_LOOKS.length === ENEMY_KIND_COUNT && ENEMY_KIND_COUNT === 3, 'three enemy looks');
-assert(new Set(ENEMY_LOOKS.map((look) => look.body)).size === 3, 'body colors differ');
-assert(new Set(ENEMY_LOOKS.map((look) => look.mark)).size === 3, 'mark colors differ');
+assert(new Set(ENEMY_LOOKS.map((look) => look.texture)).size === 3, 'three enemy textures');
+assert(new Set(ENEMY_LOOKS.map((look) => look.name)).size === 3, 'three enemy names');
+assert(ENEMY_LOOKS[0].facing === -1, 'yayu art faces left');
+assert(ENEMY_LOOKS[1].facing === 1, 'the fox art faces right');
+assert(ENEMY_LOOKS[2].facing === 0, 'dijiang stays frontal');
 assert(spawnCountFor(0) === ENEMY_SPAWN_COUNT, 'the opening still spawns one at a time');
 assert(spawnCountFor(ENEMY_SPAWN_RAMP_MS) === ENEMY_SPAWN_COUNT_LATE, 'later waves spawn a pair');
 
