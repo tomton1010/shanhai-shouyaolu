@@ -15,7 +15,6 @@ import {
   ACTOR_SPRITE_DISPLAY_SIZE,
   COLOR_HINT,
   COLOR_MALACHITE,
-  COLOR_PLAYER_OUTLINE,
   COLOR_TALISMAN_COOLDOWN,
   COLOR_TALISMAN_DASH,
   COLOR_TALISMAN_READY,
@@ -29,7 +28,9 @@ import {
   DAMAGE_NUMBER_MS,
   DAMAGE_NUMBER_RISE,
   DASH_SLASH_DURATION_MS,
+  ENEMY_FACING_DEADZONE,
   ENEMY_LOOKS,
+  ENEMY_SPRITE_DISPLAY_SIZE,
   GAME_HEIGHT,
   GAME_WIDTH,
   HINT_FONT,
@@ -67,7 +68,7 @@ export class PlayScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container;
   private companion!: Phaser.GameObjects.Container;
   private enemyViews: Phaser.GameObjects.Container[] = [];
-  private enemyBodies: Phaser.GameObjects.Graphics[] = [];
+  private enemySprites: Phaser.GameObjects.Sprite[] = [];
   private enemyKindDrawn: number[] = [];
   private floaters: { text: Phaser.GameObjects.Text; lifeMs: number; x: number; y: number }[] = [];
   private orbViews: Phaser.GameObjects.Sprite[] = [];
@@ -118,9 +119,15 @@ export class PlayScene extends Phaser.Scene {
     this.load.image(WHIP_VINE_LOOK.texture, `${base}${WHIP_VINE_LOOK.file}`);
     this.load.image(DASH_SLASH_LOOK.texture, `${base}${DASH_SLASH_LOOK.file}`);
     this.load.image(ORB_LOOK.texture, `${base}${ORB_LOOK.file}`);
+    for (const look of ENEMY_LOOKS) {
+      this.load.image(look.texture, `${base}${look.file}`);
+    }
   }
 
   create(): void {
+    for (const look of ENEMY_LOOKS) {
+      this.textures.get(look.texture).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    }
     this.drawGround();
     this.motion = createMotionState(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     this.hunt = createHuntState(this.motion.x, this.motion.y);
@@ -363,43 +370,45 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private createEnemyViews(): void {
+    const first = ENEMY_LOOKS[0];
     for (let index = 0; index < this.hunt.enemies.length; index += 1) {
-      const body = this.add.graphics();
-      this.paintEnemy(body, 0);
-      const view = this.add.container(0, 0, [body]);
+      const sprite = this.add.sprite(0, 0, first.texture);
+      this.applyEnemyLook(sprite, first);
+      const view = this.add.container(0, 0, [sprite]);
       view.setDepth(4);
       view.setVisible(false);
-      this.enemyBodies.push(body);
+      this.enemySprites.push(sprite);
       this.enemyKindDrawn.push(-1);
       this.enemyViews.push(view);
     }
   }
 
-  private paintEnemy(body: Phaser.GameObjects.Graphics, kind: number): void {
-    const look = ENEMY_LOOKS[kind] ?? ENEMY_LOOKS[0];
-    body.clear();
-    body.fillStyle(COLOR_PLAYER_OUTLINE, 1);
-    if (kind === 1) {
-      body.fillRect(-16, -30, 32, 60);
-      body.fillStyle(look.body, 1);
-      body.fillRect(-14, -28, 28, 56);
-      body.fillStyle(look.mark, 1);
-      body.fillRect(-10, -28, 20, 8);
+  /** 贴图锚在躯干上，显示尺寸固定，最近邻由贴图过滤保证。 */
+  private applyEnemyLook(
+    sprite: Phaser.GameObjects.Sprite,
+    look: (typeof ENEMY_LOOKS)[number],
+  ): void {
+    sprite.setTexture(look.texture);
+    sprite.setOrigin(look.originX, look.originY);
+    sprite.setDisplaySize(ENEMY_SPRITE_DISPLAY_SIZE, ENEMY_SPRITE_DISPLAY_SIZE);
+    sprite.setFlipX(false);
+  }
+
+  /** 侧面原画按移动方向水平翻转。帝江是正面，不翻。 */
+  private faceEnemy(
+    sprite: Phaser.GameObjects.Sprite,
+    look: (typeof ENEMY_LOOKS)[number],
+    enemyX: number,
+  ): void {
+    if (look.facing === 0) {
       return;
     }
-    if (kind === 2) {
-      body.fillCircle(0, 0, 24);
-      body.fillStyle(look.body, 1);
-      body.fillCircle(0, 0, 20);
-      body.fillStyle(look.mark, 1);
-      body.fillCircle(0, -1, 5);
+    const dx = this.motion.x - enemyX;
+    if (Math.abs(dx) < ENEMY_FACING_DEADZONE) {
       return;
     }
-    body.fillRoundedRect(-26, -16, 52, 32, 2);
-    body.fillStyle(look.body, 1);
-    body.fillRoundedRect(-24, -14, 48, 28, 2);
-    body.fillStyle(look.mark, 1);
-    body.fillRect(-6, -6, 16, 8);
+    const artFacesRight = look.facing > 0;
+    sprite.setFlipX((dx > 0) !== artFacesRight);
   }
 
   private createOrbViews(): void {
@@ -443,12 +452,15 @@ export class PlayScene extends Phaser.Scene {
       if (!enemy.active) {
         continue;
       }
+      const look = ENEMY_LOOKS[enemy.kind] ?? ENEMY_LOOKS[0];
+      const sprite = this.enemySprites[index];
       if (this.enemyKindDrawn[index] !== enemy.kind) {
-        this.paintEnemy(this.enemyBodies[index], enemy.kind);
+        this.applyEnemyLook(sprite, look);
         this.enemyKindDrawn[index] = enemy.kind;
       }
-      view.setPosition(enemy.x, enemy.y);
-      view.setRotation(Math.atan2(this.motion.y - enemy.y, this.motion.x - enemy.x));
+      view.setPosition(Math.round(enemy.x), Math.round(enemy.y));
+      view.setDepth(4 + enemy.y / (GAME_HEIGHT * 4));
+      this.faceEnemy(sprite, look, enemy.x);
       view.setAlpha(enemy.hitFlashMs > 0 ? 0.45 : 1);
     }
 

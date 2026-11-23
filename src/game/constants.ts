@@ -184,21 +184,50 @@ export const COLOR_MALACHITE_DEEP = 0x1b4630;
 export const COLOR_COMPANION_FUR = 0x241f1c;
 export const COLOR_COMPANION_EAR = 0xe6dcc8;
 
-/** 小怪比玩家暗。三种外形各用一色，饱和度仍低于朱砂符纸。 */
-export const COLOR_ENEMY_BODY = 0x3a3028;
-export const COLOR_ENEMY_MARK = 0x8a5a32;
-/** 细高的那种，石青灰，不是水行特效。 */
-export const COLOR_ENEMY_TALL = 0x314047;
-export const COLOR_ENEMY_TALL_MARK = 0x7f9290;
-/** 圆甲，比地面深，骨色只是一小点。 */
-export const COLOR_ENEMY_ROUND = 0x2a221c;
-export const COLOR_ENEMY_ROUND_MARK = 0xd5c8b4;
-
 export const ENEMY_KIND_COUNT = 3;
+
+/**
+ * 三种小怪待机图在画面上的边长，像素。源图是 256×256 透明 PNG，
+ * 引擎里用最近邻缩放到这个尺寸，不走线性过滤。
+ * 设计稿建议小怪 48–64。这三张细节多，64 会糊，80 仍明显小于精英（96）和 Boss，
+ * 躯干也小于玩家和狌狌的 64 身高。
+ */
+export const ENEMY_SPRITE_DISPLAY_SIZE = 80;
+
+/** 水平距离小于这个值时不翻面，避免贴身上下走时来回闪。 */
+export const ENEMY_FACING_DEADZONE = 12;
+
+/**
+ * 和 ENEMY_PROFILES 下标对齐。
+ * facing：原画朝向，-1 面朝左，1 面朝右，0 正面、不翻转。
+ * originX/Y：躯干在贴图上的位置（0–1）。逻辑坐标、接触圆、掉落都钉在这里，不钉在翅膀或长尾的外框上。
+ * 接触圆半径仍是下面的 ENEMY_CONTACT_RADIUS 那一组，没有把受击范围放大到整张图。
+ */
 export const ENEMY_LOOKS = [
-  { body: COLOR_ENEMY_BODY, mark: COLOR_ENEMY_MARK },
-  { body: COLOR_ENEMY_TALL, mark: COLOR_ENEMY_TALL_MARK },
-  { body: COLOR_ENEMY_ROUND, mark: COLOR_ENEMY_ROUND_MARK },
+  {
+    name: '窫窳',
+    texture: 'enemy-yayu',
+    file: 'art/enemies/yayu_idle.png',
+    facing: -1,
+    originX: 0.39,
+    originY: 0.56,
+  },
+  {
+    name: '九尾狐',
+    texture: 'enemy-jiuweihu',
+    file: 'art/enemies/jiuweihu_idle.png',
+    facing: 1,
+    originX: 0.74,
+    originY: 0.6,
+  },
+  {
+    name: '帝江',
+    texture: 'enemy-dijiang',
+    file: 'art/enemies/dijiang_idle.png',
+    facing: 0,
+    originX: 0.5,
+    originY: 0.56,
+  },
 ] as const;
 
 /** 狌狌身长，和玩家同级。待机图按这个身高显示，不要做成大头。 */
@@ -234,11 +263,12 @@ export const WHIP_DURATION_MS = 240;
 export const WHIP_CAP = 4;
 
 /**
- * 宽兽是基准，和之前的手感一样。细高的快但脆，圆甲慢但多 1 点血，而且少见。
- * 冲刺斩是 2 点：宽兽和细高一刀收掉，圆甲留下 1 点。
+ * 窫窳是基准，和之前的宽兽手感一样。九尾狐更快但脆，帝江慢、少见、多 1 点血。
+ * 冲刺斩是 2 点：窫窳和九尾狐一刀收掉，帝江留下 1 点。
  */
 export const ENEMY_HP = 2;
 export const ENEMY_SPEED = 108;
+/** 玩家中心到妖物躯干的接触距离。不是贴图外框，翅膀和长尾不另外加一圈。 */
 export const ENEMY_CONTACT_RADIUS = 58;
 export const ENEMY_TALL_HP = 1;
 export const ENEMY_TALL_SPEED = 150;
@@ -246,7 +276,7 @@ export const ENEMY_TALL_CONTACT_RADIUS = 40;
 export const ENEMY_ROUND_HP = 3;
 export const ENEMY_ROUND_SPEED = 64;
 export const ENEMY_ROUND_CONTACT_RADIUS = 72;
-/** 刷新权重。宽兽最多，圆甲最少。 */
+/** 刷新权重。窫窳最多，帝江最少。 */
 export const ENEMY_KIND_WEIGHTS = [4, 2, 1] as const;
 
 export const ENEMY_PROFILES = [
